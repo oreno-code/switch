@@ -1,4 +1,8 @@
-# 桃太郎電鉄2 〜あなたの町も きっとある〜 v1.0.4
+---
+layout: page
+title: 桃太郎電鉄2 〜あなたの町も きっとある〜 v1.0.4
+permalink: /games/momotetsu2/
+---
 
 - tid: 01002ef0180e0000
 - bid: 16A9DB2CCEBEF238
