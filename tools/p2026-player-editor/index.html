@@ -506,6 +506,7 @@ function buildEditor(){
   pcs+='<div class="grid2">';
   ['コントロール','スタミナ'].forEach(b=>{if(NUMF[b])pcs+=statCtl(b,{label:b,rank:true,max:100});});
   pcs+='</div>';
+  pcs+='<p class="note">球速は km/h 表記（内部値 = km/h − 80、範囲 80〜207km/h）。コントロール・スタミナは 0〜100。この3項目は 0x138〜0x13A にビットをまたいで格納されます（球速+コントロール+01 が 0x138、コントロール残り+スタミナ+01/+02 が 0x139、スタミナ残りが 0x13A）。</p>';
   H+=group('球速・コントロール・スタミナ','球速・制球・スタミナ',true,pcs);
 
   /* --- 守備 --- */
