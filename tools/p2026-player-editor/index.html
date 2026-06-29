@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>パワプロ2026 選手データエディタ</title>
+<style>
+:root{
+  --bg:#080b11; --bg2:#0d121b; --panel:#111824; --panel2:#0e141e;
+  --border:#1d2735; --border2:#27344a;
+  --ink:#d7e2f0; --mut:#74879f; --dim:#4b5b71;
+  --acc:#b6f23a; --acc2:#39d3ff; --hot:#ff5d4d; --gold:#ffce4d;
+  --mono:'Cascadia Code','Cascadia Mono',Consolas,'SFMono-Regular','Roboto Mono',monospace;
+  --sans:'Hiragino Kaku Gothic ProN','Yu Gothic','YuGothic',Meiryo,'MS PGothic',sans-serif;
+  --s-base:#5aa9ff; --s-abil:#b6f23a; --s-def:#2fe0c0; --s-apt:#c08bff;
+  --s-pcs:#ff9a3c; --s-form:#ff7ab0; --s-pitch:#39d3ff; --s-orig:#5fd0ff;
+  --s-origp:#ffce4d; --s-face:#ff63d0; --s-sp:#ff5d4d; --s-unk:#5d6b80; --s-etc:#5d6b80;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:
+    radial-gradient(1100px 600px at 85% -10%, rgba(57,211,255,.07), transparent 60%),
+    radial-gradient(900px 500px at -5% 0%, rgba(182,242,58,.06), transparent 55%),
+    var(--bg);
+  color:var(--ink); font-family:var(--sans); line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--mono)}
+header{position:sticky;top:0;z-index:50;background:linear-gradient(180deg,rgba(8,11,17,.97),rgba(8,11,17,.86));
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--border2)}
+.hwrap{max-width:1340px;margin:0 auto;padding:13px 22px}
+.brand{display:flex;align-items:baseline;gap:13px;flex-wrap:wrap}
+.brand h1{font-size:18px;margin:0;letter-spacing:.02em;font-weight:800}
+.brand .tag{font-family:var(--mono);font-size:11px;color:var(--bg);background:var(--acc);padding:2px 8px;
+  border-radius:4px;font-weight:700;box-shadow:0 0 18px rgba(182,242,58,.35)}
+.brand .sub{color:var(--mut);font-size:12.5px}
+.tabs{display:flex;gap:4px;margin-top:11px;flex-wrap:wrap}
+.tabs button{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--mut);
+  font-family:var(--sans);font-size:14px;font-weight:700;padding:7px 14px;cursor:pointer;letter-spacing:.02em}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{color:var(--acc);border-color:var(--acc)}
+main{max-width:1340px;margin:0 auto;padding:18px 22px 90px}
+.panel{display:none}
+.panel.on{display:block}
+
+/* ---------- EDITOR ---------- */
+.ed{display:grid;grid-template-columns:1fr 460px;gap:22px;align-items:start}
+@media(max-width:1040px){.ed{grid-template-columns:1fr}}
+.edleft{min-width:0}
+.edgroup{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);
+  border-radius:12px;margin-bottom:14px;overflow:hidden}
+.edgroup>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:10px;
+  font-weight:800;font-size:14.5px;border-bottom:1px solid var(--border);user-select:none}
+.edgroup>summary::-webkit-details-marker{display:none}
+.edgroup>summary .bar{width:4px;height:17px;border-radius:2px;background:var(--c,var(--acc));box-shadow:0 0 12px var(--c)}
+.edgroup>summary .chev{margin-left:auto;color:var(--dim);transition:.15s;font-family:var(--mono);font-size:12px}
+.edgroup[open]>summary .chev{transform:rotate(90deg)}
+.edgroup .body{padding:14px 16px}
+.frow{display:grid;grid-template-columns:130px 1fr;gap:10px 12px;align-items:center;margin-bottom:9px}
+.frow:last-child{margin-bottom:0}
+.frow>label{font-size:13px;color:var(--ink)}
+.frow .ctl{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+input[type=number],input[type=text],select{
+  background:var(--bg2);border:1px solid var(--border2);color:var(--ink);font-family:var(--mono);
+  font-size:13px;padding:6px 9px;border-radius:7px;outline:none}
+input[type=number]{width:78px}
+input[type=text].hex{width:110px}
+select{font-family:var(--sans);min-width:120px;max-width:100%}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,242,58,.12)}
+.rng{accent-color:var(--acc);width:150px;vertical-align:middle}
+.rkbadge{font-family:var(--mono);font-weight:800;color:var(--gold);font-size:13px;min-width:20px}
+.byteref{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
+@media(max-width:620px){.grid2{grid-template-columns:1fr}}
+
+/* special abilities */
+.spsearch{width:100%;background:var(--bg2);border:1px solid var(--border2);color:var(--ink);
+  font-family:var(--mono);font-size:13px;padding:8px 11px;border-radius:8px;outline:none;margin-bottom:12px}
+.spsearch:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,242,58,.12)}
+.spgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 16px}
+.spitem{display:flex;align-items:center;gap:8px;font-size:12.8px;padding:3px 2px;border-radius:6px}
+.spitem.hide{display:none}
+.spitem input[type=checkbox]{width:15px;height:15px;accent-color:var(--hot);cursor:pointer}
+.spitem label{cursor:pointer;color:var(--ink)}
+.spitem.on label{color:var(--hot);font-weight:700}
+.spitem .num{width:60px}
+.spgraded{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 16px;
+  padding:0 0 12px;margin-bottom:10px;border-bottom:1px dashed var(--border2)}
+.spgraded .g{display:flex;align-items:center;gap:8px;font-size:12.8px}
+.spgraded .g label{flex:1}
+.note{font-size:11.5px;color:var(--mut);white-space:pre-wrap;line-height:1.45;margin:2px 0 0}
+.prio{background:rgba(255,206,77,.08);border:1px solid rgba(255,206,77,.3);border-radius:8px;
+  padding:8px 11px;margin-top:10px;font-size:12px;color:var(--gold)}
+.toolbar2{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.btn{background:var(--panel);border:1px solid var(--border2);color:var(--ink);font-family:var(--sans);
+  font-weight:700;font-size:12.5px;padding:7px 13px;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.pri{background:var(--acc);color:#04070c;border-color:var(--acc)}
+
+/* sticky byte dump */
+.edright{position:sticky;top:130px}
+@media(max-width:1040px){.edright{position:static}}
+.dump{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border2);
+  border-radius:12px;overflow:hidden}
+.dump .dh{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px}
+.dump .dh h3{margin:0;font-size:14px}
+.dump .dh .live{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--acc);
+  display:flex;align-items:center;gap:5px}
+.dump .dh .live .pulse{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);
+  animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.hex{font-family:var(--mono);font-size:12px;overflow:auto;max-height:60vh;padding:6px 10px 12px}
+.hex table{border-collapse:collapse;min-width:100%}
+.hex td,.hex th{padding:2.5px 4px;text-align:center}
+.hex th{color:var(--dim);font-size:10px;font-weight:400}
+.hex td.o{color:var(--acc2);font-weight:700;text-align:right;padding-right:9px}
+.hex td.b{color:var(--ink);border-radius:4px;min-width:20px;transition:background .08s,color .08s}
+.hex td.z{color:var(--dim)}
+.hex td.n{color:var(--border2)}
+.hex td.b.nz{color:var(--gold)}
+.hex td.b.hot{background:var(--hot);color:#fff;box-shadow:0 0 8px var(--hot)}
+.hex td.b.foc{background:rgba(182,242,58,.85);color:#04070c;font-weight:700}
+.dump .out{border-top:1px solid var(--border);padding:11px 14px}
+.dump .out .lbl{font-size:11px;color:var(--mut);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.dump .out textarea{width:100%;height:60px;resize:vertical;background:var(--bg2);border:1px solid var(--border2);
+  color:var(--acc);font-family:var(--mono);font-size:11px;border-radius:7px;padding:8px;outline:none;line-height:1.5}
+.dump .legend{padding:0 14px 12px;font-size:11px;color:var(--mut)}
+.dump .legend b{color:var(--gold)}
+
+/* ---------- shared (map/conv/sample) ---------- */
+.search{position:relative;max-width:560px;margin-bottom:6px}
+.search input{width:100%;background:var(--panel);border:1px solid var(--border2);color:var(--ink);
+  font-family:var(--mono);font-size:13.5px;padding:9px 12px 9px 34px;border-radius:8px;outline:none}
+.search input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,242,58,.12)}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.5}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.chip{font-size:12px;font-weight:700;border:1px solid var(--border2);background:var(--panel2);color:var(--mut);
+  padding:5px 11px;border-radius:999px;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:6px}
+.chip .dot{width:8px;height:8px;border-radius:2px;background:var(--c,#888)}
+.chip:hover{color:var(--ink);border-color:var(--c,var(--border2))}
+.chip.on{color:#04070c;background:var(--c,#888);border-color:var(--c,#888)}
+.chip .n{font-family:var(--mono);opacity:.7;font-size:10.5px}
+.sec{margin:24px 0 8px;display:flex;align-items:center;gap:10px}
+.sec .bar{width:4px;height:20px;border-radius:2px;background:var(--c,#888);box-shadow:0 0 14px var(--c)}
+.sec h2{font-size:16px;margin:0;font-weight:800}
+.sec .rng2{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+.sec .cnt{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px}
+.byte{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);
+  border-radius:10px;overflow:hidden}
+.byte .bh{display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.012)}
+.off{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--c,var(--acc))}
+.byte .secname{font-size:11px;color:var(--mut);font-weight:700}
+.byte .exv{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--gold)}
+.byte .exv .bin{color:var(--dim);margin-left:6px;letter-spacing:.06em}
+.bits{padding:4px 0}
+.bit{display:grid;grid-template-columns:38px 1fr auto;gap:8px;align-items:start;padding:5px 12px;
+  border-bottom:1px dashed rgba(255,255,255,.04)}
+.bit:last-child{border-bottom:none}
+.bit .bm{font-family:var(--mono);font-size:11px;color:var(--dim);padding-top:1px}
+.bit .nm{font-size:13px;color:var(--ink)}
+.bit.empty .nm{color:var(--dim)}
+.bit .nt{display:block;font-size:11px;color:var(--mut);white-space:pre-wrap;margin-top:3px;
+  border-left:2px solid var(--border2);padding-left:8px;line-height:1.45}
+.bit .ex{width:11px;height:11px;border-radius:50%;border:1px solid var(--border2);margin-top:3px}
+.bit .ex.on{background:var(--hot);border-color:var(--hot);box-shadow:0 0 9px var(--hot)}
+.bit.mark{background:rgba(182,242,58,.07)}
+.bit mark{background:rgba(182,242,58,.28);color:#fff;border-radius:2px;padding:0 1px}
+.field{grid-column:1/-1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:linear-gradient(90deg,rgba(255,255,255,.025),transparent);border:1px dashed var(--border2);
+  border-radius:9px;padding:10px 14px}
+.field .fn{font-weight:800;font-size:14px}
+.field .nt{color:var(--mut);font-size:11.5px;white-space:pre-wrap;width:100%}
+.empty-msg{color:var(--dim);font-family:var(--mono);padding:40px;text-align:center}
+.cv{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:10px}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--border);
+  border-radius:12px;padding:16px 18px}
+.card h3{margin:0 0 12px;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.card h3 .bar{width:4px;height:16px;border-radius:2px;background:var(--acc2)}
+table.t{border-collapse:collapse;width:100%;font-size:13px}
+.t th,.t td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--border)}
+.t th{color:var(--mut);font-size:11px;font-weight:700;letter-spacing:.04em}
+.t td.m,.t th.m{font-family:var(--mono)}
+.rankrow{display:flex;flex-wrap:wrap;gap:6px}
+.rankband{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;background:var(--panel2);
+  border:1px solid var(--border);border-radius:7px;padding:6px 10px}
+.rankband .rk{font-weight:800;font-size:14px;color:var(--gold)}
+.calc{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.calc .out2{font-family:var(--mono);font-size:15px;color:var(--acc);font-weight:800}
+.pt{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.pt .it{display:flex;gap:8px;align-items:center;font-size:12.5px;background:var(--panel2);
+  border:1px solid var(--border);border-radius:6px;padding:5px 9px}
+.pt .it .c{font-family:var(--mono);color:var(--acc2);font-size:11px}
+footer{max-width:1340px;margin:0 auto;padding:26px 22px;color:var(--dim);font-size:11.5px;
+  border-top:1px solid var(--border);font-family:var(--mono)}
+::-webkit-scrollbar{height:9px;width:9px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:8px}
+::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<header>
+  <div class="hwrap">
+    <div class="brand">
+      <span class="tag mono">AArch64 / ROM</span>
+      <h1>パワプロ2026 選手データエディタ</h1>
+      <span class="sub">ステータスを入力 → 右の実バイトダンプが自動更新</span>
+    </div>
+    <div class="tabs">
+      <button data-tab="edit" class="on">選手エディタ</button>
+      <button data-tab="map">構造体マップ</button>
+      <button data-tab="conv">変換表</button>
+      <button data-tab="sample">実例選手(サンプル)</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="panel on" id="tab-edit">
+    <div class="toolbar2">
+      <button class="btn pri" id="btnSample">サンプル(実例選手)を読み込む</button>
+      <button class="btn" id="btnZero">全て0クリア</button>
+      <span class="byteref" id="edInfo"></span>
+    </div>
+    <div class="ed">
+      <div class="edleft" id="edForm"></div>
+      <div class="edright">
+        <div class="dump">
+          <div class="dh"><h3>実バイトダンプ</h3><span class="live"><span class="pulse"></span>LIVE</span></div>
+          <div class="hex" id="hexDump"></div>
+          <div class="out">
+            <div class="lbl">編集領域 0x12E–0x208 の連続バイト <button class="btn" id="btnCopy" style="padding:3px 9px;font-size:11px">コピー</button></div>
+            <textarea id="hexStr" readonly></textarea>
+          </div>
+          <div class="legend"><b>黄</b>=非ゼロ / <span style="color:var(--dim)">灰</span>=00 / ·· =未モデル化 ・ 入力欄にフォーカスすると対象バイトが<span style="color:var(--acc)">緑</span>に光ります</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="tab-map">
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="q" type="search" placeholder="検索: 能力名 / 特殊能力 / オフセット(例 1E2) / ビット(例 80)" autocomplete="off">
+    </div>
+    <div class="chips" id="chips"></div>
+    <div id="mapBody"></div>
+  </section>
+
+  <section class="panel" id="tab-conv"><div id="convBody"></div></section>
+  <section class="panel" id="tab-sample"><div id="exBody"></div></section>
+</main>
+
+<footer>
+  生成元: p2026x.xlsx ＋ 実況付き/エフェクト表 &middot;
+  ※ オフセットはタイトル・バージョン依存。記事化時は対象バージョンを明記 &middot; 解析・教育目的
+</footer>
+
+<script>
+const DATA = {"fields": [{"offset": "00-1D", "num": 0, "name": "ニックネーム", "note": null, "section": "基本情報"}, {"offset": "54-71", "num": 84, "name": "名前（名）", "note": null, "section": "基本情報"}, {"offset": "A8-C5", "num": 168, "name": "名前（姓）", "note": null, "section": "基本情報"}, {"offset": "114-12D", "num": 276, "name": "なんか", "note": null, "section": "不明領域"}, {"offset": "13C-153", "num": 316, "name": "なんか", "note": null, "section": "不明領域"}, {"offset": "164-", "num": 356, "name": "オリジナル変化球名（最大9文字？）", "note": null, "section": "オリジナル変化球名"}, {"offset": "1C0-1C1", "num": 448, "name": "顔", "note": "0001:主人公 0003:矢部 2F27:サッたん 2F28:真・サッたん 2F29:Ω鳴海 など", "section": "顔"}, {"offset": "1C2-1DF", "num": 450, "name": "なんか", "note": null, "section": "不明領域"}, {"offset": "FC-108", "num": 252, "name": "背ネーム", "note": "UTF-8 / 13バイト (abs 0x97B4)", "section": "基本情報"}, {"offset": "11D", "num": 285, "name": "投打", "note": "+01:左投 / +04:左打 / +08:両打（無印は右）(abs 0x97D5)", "section": "基本情報"}, {"offset": "120-121", "num": 288, "name": "登録名タイプ", "note": "0x120 +80=type+01 / 0x121 +01=type+02（00:ニックネーム 01:姓 02:名 03:姓+名）, 0x121 +02=姓名反転 (abs 0x97D8/0x97D9)", "section": "基本情報"}], "struct": [{"offset": "12E", "num": 302, "kind": "bit", "bit": "01", "name": "弾道+01", "note": "弾道1:0 弾道2:1 弾道3:2 弾道4:3", "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "02", "name": "弾道+02", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "04", "name": "ミート+01", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "08", "name": "ミート+02", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "10", "name": "ミート+04", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "20", "name": "ミート+08", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "40", "name": "ミート+10", "note": null, "section": "能力値"}, {"offset": "12E", "num": 302, "kind": "bit", "bit": "80", "name": "ミート+20", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "01", "name": "ミート+40", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "02", "name": "パワー+01", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "04", "name": "パワー+02", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "08", "name": "パワー+04", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "10", "name": "パワー+08", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "20", "name": "パワー+10", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "40", "name": "パワー+20", "note": null, "section": "能力値"}, {"offset": "12F", "num": 303, "kind": "bit", "bit": "80", "name": "パワー+40", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "01", "name": "肩力+01", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "02", "name": "肩力+02", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "04", "name": "肩力+04", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "08", "name": "肩力+08", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "10", "name": "肩力+10", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "20", "name": "肩力+20", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "40", "name": "肩力+40", "note": null, "section": "能力値"}, {"offset": "130", "num": 304, "kind": "bit", "bit": "80", "name": "走力+01", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "01", "name": "走力+02", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "02", "name": "走力+04", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "04", "name": "走力+08", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "08", "name": "走力+10", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "10", "name": "走力+20", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "20", "name": "走力+40", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "40", "name": "守備力+01", "note": null, "section": "能力値"}, {"offset": "131", "num": 305, "kind": "bit", "bit": "80", "name": "守備力+02", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "01", "name": "守備力+04", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "02", "name": "守備力+08", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "04", "name": "守備力+10", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "08", "name": "守備力+20", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "10", "name": "守備力+40", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "20", "name": "捕球+01", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "40", "name": "捕球+02", "note": null, "section": "能力値"}, {"offset": "132", "num": 306, "kind": "bit", "bit": "80", "name": "捕球+04", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "01", "name": "捕球+08", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "02", "name": "捕球+10", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "04", "name": "捕球+20", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "08", "name": "捕球+40", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "10", "name": "守備位置+01", "note": "投手:01 捕手:02 一塁:03 二塁:04 三塁:05 遊撃:06 外野:07", "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "20", "name": "守備位置+02", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "40", "name": "守備位置+04", "note": null, "section": "能力値"}, {"offset": "133", "num": 307, "kind": "bit", "bit": "80", "name": null, "note": null, "section": "能力値"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "01", "name": "投手守備レベル+01", "note": "0%:0 10%:1 20%:2 40%:3 50%:4 70%:5 80%:6 100%:7", "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "02", "name": "投手守備レベル+02", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "04", "name": "投手守備レベル+04", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "08", "name": "捕手守備レベル+01", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "10", "name": "捕手守備レベル+02", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "20", "name": "捕手守備レベル+04", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "40", "name": "一塁守備レベル+01", "note": null, "section": "守備"}, {"offset": "134", "num": 308, "kind": "bit", "bit": "80", "name": "一塁守備レベル+02", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "01", "name": "一塁守備レベル+04", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "02", "name": "二塁守備レベル+01", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "04", "name": "二塁守備レベル+02", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "08", "name": "二塁守備レベル+04", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "10", "name": "三塁守備レベル+01", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "20", "name": "三塁守備レベル+02", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "40", "name": "三塁守備レベル+04", "note": null, "section": "守備"}, {"offset": "135", "num": 309, "kind": "bit", "bit": "80", "name": "遊撃守備レベル+01", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "01", "name": "遊撃守備レベル+02", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "02", "name": "遊撃守備レベル+04", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "04", "name": "外野守備レベル+01", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "08", "name": "外野守備レベル+02", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "10", "name": "外野守備レベル+04", "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "20", "name": null, "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "40", "name": null, "note": null, "section": "守備"}, {"offset": "136", "num": 310, "kind": "bit", "bit": "80", "name": null, "note": null, "section": "守備"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "01", "name": "？", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "02", "name": null, "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "04", "name": "先発適正△", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "08", "name": "先発適正○", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "10", "name": "中継ぎ適正△", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "20", "name": "中継ぎ適正○", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "40", "name": "抑え適正△", "note": null, "section": "適性"}, {"offset": "137", "num": 311, "kind": "bit", "bit": "80", "name": "抑え適正○", "note": null, "section": "適性"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "01", "name": "球速+01", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "02", "name": "球速+02", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "04", "name": "球速+04", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "08", "name": "球速+08", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "10", "name": "球速+10", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "20", "name": "球速+20", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "40", "name": "球速+40", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "138", "num": 312, "kind": "bit", "bit": "80", "name": "コントロール+01", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "01", "name": "コントロール+02", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "02", "name": "コントロール+04", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "04", "name": "コントロール+08", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "08", "name": "コントロール+10", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "10", "name": "コントロール+20", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "20", "name": "コントロール+40", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "40", "name": "スタミナ+01", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "139", "num": 313, "kind": "bit", "bit": "80", "name": "スタミナ+02", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "01", "name": "スタミナ+04", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "02", "name": "スタミナ+08", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "04", "name": "スタミナ+10", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "08", "name": "スタミナ+20", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "10", "name": "スタミナ+40", "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "20", "name": null, "note": null, "section": "球速・制球・スタミナ"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "40", "name": "打撃フォーム+001", "note": null, "section": "打撃フォーム"}, {"offset": "13A", "num": 314, "kind": "bit", "bit": "80", "name": "打撃フォーム+002", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "01", "name": "打撃フォーム+004", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "02", "name": "打撃フォーム+008", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "04", "name": "打撃フォーム+010", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "08", "name": "打撃フォーム+020", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "10", "name": "打撃フォーム+040", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "20", "name": "打撃フォーム+080", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "40", "name": "打撃フォーム+100", "note": null, "section": "打撃フォーム"}, {"offset": "13B", "num": 315, "kind": "bit", "bit": "80", "name": "打撃フォーム+200", "note": null, "section": "打撃フォーム"}, {"offset": "154", "num": 340, "kind": "byte", "bit": null, "name": "スライダー系", "note": "00:ストレート　01:　02:ツーシーム　3:ムービングファスト\n04:超スローボール　05:スライダー　06:Ｈスライダー\n07:カットボール　08:カーブ　09:スローカーブ　0A:ドロップ\n0B:スラーブ　0C:ドロップカーブ　0D:ナックルカーブ\n0E:フォーク　0F:パーム　10:ナックル　11:Ｖスライダー\n12:ＳＦＦ　13:チェンジアップ　14:シンカー　15:　\n16:Ｈシンカー　17:サークルチェンジ　18:シュート\n19:Ｈシュート　1A:オリジナル変化球　1B:なし\n1C:パワーカーブ　1D:シンキングツーシーム\n1E:Dスライダー 1F:ファストチェンジ 20:シンキングスプリット", "section": "球種"}, {"offset": "155", "num": 341, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "156", "num": 342, "kind": "byte", "bit": null, "name": "カーブ系", "note": null, "section": "球種"}, {"offset": "157", "num": 343, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "158", "num": 344, "kind": "byte", "bit": null, "name": "フォーク系", "note": null, "section": "球種"}, {"offset": "159", "num": 345, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "15A", "num": 346, "kind": "byte", "bit": null, "name": "シンカー系", "note": null, "section": "球種"}, {"offset": "15B", "num": 347, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "15C", "num": 348, "kind": "byte", "bit": null, "name": "シュート系", "note": null, "section": "球種"}, {"offset": "15D", "num": 349, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "15E", "num": 350, "kind": "byte", "bit": null, "name": "ストレート", "note": null, "section": "球種"}, {"offset": "15F", "num": 351, "kind": "byte", "bit": null, "name": "変化量", "note": null, "section": "球種"}, {"offset": "160", "num": 352, "kind": "byte", "bit": null, "name": "第二ストレート", "note": null, "section": "球種"}, {"offset": "161", "num": 353, "kind": "byte", "bit": null, "name": "変化量", "note": null, "section": "球種"}, {"offset": "162", "num": 354, "kind": "byte", "bit": null, "name": "第二変化球", "note": null, "section": "球種"}, {"offset": "163", "num": 355, "kind": "byte", "bit": null, "name": "変化量", "note": "1~7", "section": "球種"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "01", "name": "エフェクトのみ+01", "note": "0:なし　1:全力ストレート　2:マリンボール　3:クレッセントムーン\n4:ライジングキャノン　5:ライジングショット　6:爆速ストレート\n9:ムネアツシュート　A:ホワイトストーム　B:フェスティバル\nC:パワフェスボール　13:エクスカリバー　2E:カオスハーモニー　\n2F:獅子憤刃", "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "02", "name": "エフェクトのみ+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "04", "name": "エフェクトのみ+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "08", "name": "エフェクトのみ+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "10", "name": "エフェクトのみ+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "20", "name": "エフェクトのみ+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "40", "name": "エフェクトのみ+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B6", "num": 438, "kind": "bit", "bit": "80", "name": "エフェクトのみ+80", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "01", "name": "A+01", "note": "※たまに3Fのものが存在する。", "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "02", "name": "A+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "04", "name": "A+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "08", "name": "A+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "10", "name": "A+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "20", "name": "A+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "40", "name": "A+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B7", "num": 439, "kind": "bit", "bit": "80", "name": "A+80", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "01", "name": "オリ変減速度+01", "note": "※-140km/h分しか作用しないらしい", "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "02", "name": "オリ変減速度+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "04", "name": "オリ変減速度+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "08", "name": "オリ変減速度+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "10", "name": "オリ変減速度+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "20", "name": "オリ変減速度+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "40", "name": "オリ変減速度+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B8", "num": 440, "kind": "bit", "bit": "80", "name": "オリ変減速度+80", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "01", "name": "オリ変設定場所+01", "note": "1:スライダー系　2:カーブ系　3:フォーク系　4:シンカー系\n5:シュート系　6:ストレート　7:第２スライダー系　\n8:第２カーブ系　9:第２フォーク系　A:第２シンカー系\nB:第２シュート系　C:第２ストレート系", "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "02", "name": "オリ変設定場所+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "04", "name": "オリ変設定場所+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "08", "name": "オリ変設定場所+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "10", "name": "重さ+01", "note": "0（軽い）～3F（重い）", "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "20", "name": "重さ+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "40", "name": "重さ+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1B9", "num": 441, "kind": "bit", "bit": "80", "name": "重さ+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "01", "name": "重さ+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "02", "name": "重さ+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "04", "name": "変化特性補正+01", "note": "0:なし（オリ変設定通り）　1:フォーク系（直線的軌道で急激な変化）\n2:ツーシーム系（変化方向と変化量がツーシームに換算）\n3:ナックル系（変化量内でランダムに変化）\n4:ムービングファスト系（変化方向と変化量がムービングファストに換算）\n5:シンカー系（大きな斜め変化→オリ変変化）\n6:チェンジアップ系（急減速→オリ変変化）", "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "08", "name": "変化特性補正+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "10", "name": "変化特性補正+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "20", "name": "-", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "40", "name": "-", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BA", "num": 442, "kind": "bit", "bit": "80", "name": "-", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "01", "name": "実況付きエフェクト+01", "note": "0:なし　1:アバタボール　2:マリンボール　3:クレッセントムーン\n4:ライジングキャノン　5:ライジングショット　6:ワンシーム\n7:ソニックライジング　8:ミラージュナックル　9:爆速ストレート\nA:？　B:ムネアツシュート　C:ホワイトストーム\nD:パワフェスボール　E:スタードライブ　F:？　10:超真魔球\n11:超真魔球改　12:ロゼルージュ　13:？　14:？　15:ダークネビュラ\n24:エクスカリバー　2C:カオスハーモニー　2D:獅子憤刃", "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "02", "name": "実況付きエフェクト+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "04", "name": "実況付きエフェクト+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "08", "name": "実況付きエフェクト+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "10", "name": "実況付きエフェクト+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "20", "name": "実況付きエフェクト+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "40", "name": "実況付きエフェクト+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BB", "num": 443, "kind": "bit", "bit": "80", "name": "実況付きエフェクト+80", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "01", "name": "キレ+01", "note": "0（鈍い）～1F（鋭い）", "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "02", "name": "キレ+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "04", "name": "キレ+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "08", "name": "キレ+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "10", "name": "キレ+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "20", "name": "B+01", "note": "※ここがわからない\n現在、0～6まで確認。\n0:エクスカリバー　2:獅子憤刃　3:アバタボール、マリンボール、クレッセントムーン、ライジングキャノンなど\n5:ホワイトストーム", "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "40", "name": "B+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BC", "num": 444, "kind": "bit", "bit": "80", "name": "B+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "01", "name": "B+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "02", "name": "B+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "04", "name": "横変化+01", "note": "シュート方向　：7F（小）～40（大）\nスライダー方向：  0（小）～3F（大）", "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "08", "name": "横変化+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "10", "name": "横変化+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "20", "name": "横変化+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "40", "name": "横変化+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BD", "num": 445, "kind": "bit", "bit": "80", "name": "横変化+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "01", "name": "横変化+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "02", "name": "縦変化+01", "note": "フォーク方向：7F（小）～40（大）\nライズ方向　：  0（小）～3F（大）", "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "04", "name": "縦変化+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "08", "name": "縦変化+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "10", "name": "縦変化+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "20", "name": "縦変化+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "40", "name": "縦変化+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BE", "num": 446, "kind": "bit", "bit": "80", "name": "縦変化+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "01", "name": "ブレーキ（ノビ）+01", "note": "球種によって、どちらかが適応？\n\nブレーキ\n0（小）～1F（大）\nノビ\n減速感：7F（小）～40（大）　\n加速感：  0（小）～3F（大）", "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "02", "name": "ブレーキ（ノビ）+02", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "04", "name": "ブレーキ（ノビ）+04", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "08", "name": "ブレーキ（ノビ）+08", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "10", "name": "ブレーキ（ノビ）+10", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "20", "name": "ノビ+20", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "40", "name": "ノビ+40", "note": null, "section": "オリ変パラメータ"}, {"offset": "1BF", "num": 447, "kind": "bit", "bit": "80", "name": null, "note": null, "section": "オリ変パラメータ"}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "01", "name": "打たれ強さ+02", "note": null, "section": "特殊能力", "exBin": "01110101", "exHex": "75", "exBit": 1}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "02", "name": "打たれ強さ+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "04", "name": "対左打者+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "08", "name": "対左打者+02", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "10", "name": "対左打者+04", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "20", "name": "対ピンチ+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "40", "name": "対ピンチ+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E0", "num": 480, "kind": "bit", "bit": "80", "name": "対ピンチ+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "01", "name": "クイック+04", "note": null, "section": "特殊能力", "exBin": "10110110", "exHex": "B6", "exBit": 0}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "02", "name": "ノビ+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "04", "name": "ノビ+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "08", "name": "ノビ+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "10", "name": "ケガしにくさ+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "20", "name": "ケガしにくさ+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "40", "name": "ケガしにくさ+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E1", "num": 481, "kind": "bit", "bit": "80", "name": "打たれ強さ+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "01", "name": "キレ○", "note": null, "section": "特殊能力", "exBin": "11011001", "exHex": "D9", "exBit": 1}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "02", "name": "調子安定（投手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "04", "name": "調子極端（投手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "08", "name": "回復+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "10", "name": "回復+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "20", "name": "回復+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "40", "name": "クイック+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E2", "num": 482, "kind": "bit", "bit": "80", "name": "クイック+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "01", "name": "尻上がり", "note": null, "section": "特殊能力", "exBin": "01010000", "exHex": "50", "exBit": 0}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "02", "name": "四球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "04", "name": "寸前", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "08", "name": "一発", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "10", "name": "逃げ球", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "20", "name": "軽い球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "40", "name": "重い球", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E3", "num": 483, "kind": "bit", "bit": "80", "name": "ジャイロボール", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "01", "name": "短気", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "02", "name": "負け運", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "04", "name": "勝ち運", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "08", "name": "打球反応○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "10", "name": "リリース○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "20", "name": "牽制○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "40", "name": "奪三振", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E4", "num": 484, "kind": "bit", "bit": "80", "name": "スロースターター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "01", "name": "クロスファイヤー", "note": null, "section": "特殊能力", "exBin": "00000100", "exHex": "04", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "02", "name": "根性○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "04", "name": "威圧感（投手）", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "08", "name": "乱調", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "10", "name": "力配分", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "20", "name": "抜け球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "40", "name": "ポーカーフェイス", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E5", "num": 485, "kind": "bit", "bit": "80", "name": "闘志", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "01", "name": "対左投手+2", "note": null, "section": "特殊能力", "exBin": "00001101", "exHex": "0D", "exBit": 1}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "02", "name": "対左投手+4", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "04", "name": "チャンス+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "08", "name": "チャンス+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "10", "name": "チャンス+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "20", "name": "緩急○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "40", "name": "低め○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E6", "num": 486, "kind": "bit", "bit": "80", "name": "球持ち○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "01", "name": "走塁+04", "note": null, "section": "特殊能力", "exBin": "10000110", "exHex": "86", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "02", "name": "盗塁+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "04", "name": "盗塁+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "08", "name": "盗塁+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "10", "name": "キャッチャー+01", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "20", "name": "キャッチャー+02", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "40", "name": "キャッチャー+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E7", "num": 487, "kind": "bit", "bit": "80", "name": "対左打者+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "01", "name": "送球+02", "note": null, "section": "特殊能力", "exBin": "11011001", "exHex": "D9", "exBit": 1}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "02", "name": "送球+04", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "04", "name": "送球+08", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "08", "name": "送球+10", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "10", "name": "送球+20", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "20", "name": "送球+40", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "40", "name": "走塁+01", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E8", "num": 488, "kind": "bit", "bit": "80", "name": "走塁+02", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "01", "name": "流し打ち", "note": null, "section": "特殊能力", "exBin": "00011000", "exHex": "18", "exBit": 0}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "02", "name": "プルヒッター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "04", "name": "広角打法", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "08", "name": "パワーヒッター", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "10", "name": "アベレージヒッター", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "20", "name": "調子安定（野手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "40", "name": "調子極端（野手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1E9", "num": 489, "kind": "bit", "bit": "80", "name": "送球+01", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "01", "name": "三振", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "02", "name": "チャンスメーカー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "04", "name": "初球○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "08", "name": "内野安打○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "10", "name": "バント○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "20", "name": "バント職人", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "40", "name": "粘り打ち", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EA", "num": 490, "kind": "bit", "bit": "80", "name": "固め打ち", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "01", "name": "ローボールヒッター", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "02", "name": "ハイボールヒッター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "04", "name": "代打○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "08", "name": "逆境○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "10", "name": "サヨナラ男（ヒット）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "20", "name": "サヨナラ男（本塁打）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "40", "name": "満塁男（ヒット）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EB", "num": 491, "kind": "bit", "bit": "80", "name": "満塁男（本塁打）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "01", "name": "悪球打ち", "note": null, "section": "特殊能力", "exBin": "00000100", "exHex": "04", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "02", "name": "高速チャージ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "04", "name": "守備職人", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "08", "name": "レーザービーム", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "10", "name": "いぶし銀", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "20", "name": "威圧感（野手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "40", "name": "ヘッドスライディング（一塁）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EC", "num": 492, "kind": "bit", "bit": "80", "name": "ヘッドスライディング（二・三塁）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "01", "name": "ミート多用", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "02", "name": "強振多用", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "04", "name": "人気者", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "08", "name": "途中交代", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "10", "name": "守備要員", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "20", "name": "代走要員", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "40", "name": "代打要員", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1ED", "num": 493, "kind": "bit", "bit": "80", "name": "ホーム死守", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "01", "name": "ムード×", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "02", "name": "ムード○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "04", "name": "積極守備", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "08", "name": "積極走塁", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "10", "name": "慎重盗塁", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "20", "name": "積極盗塁", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "40", "name": "慎重打法", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EE", "num": 494, "kind": "bit", "bit": "80", "name": "積極打法", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "01", "name": "チームプレイ○", "note": null, "section": "特殊能力", "exBin": "00001000", "exHex": "08", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "02", "name": "エラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "04", "name": "プレッシャーラン", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "08", "name": "ホーム突入", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "10", "name": "選球眼", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "20", "name": "対強打者○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "40", "name": "対エース○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1EF", "num": 495, "kind": "bit", "bit": "80", "name": "意外性", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "01", "name": "楽天キラー", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "02", "name": "阪神キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "04", "name": "横浜キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "08", "name": "ツバメキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "10", "name": "広島キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "20", "name": "中日キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "40", "name": "巨人キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F0", "num": 496, "kind": "bit", "bit": "80", "name": "チームプレイ×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "01", "name": "夏男", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "02", "name": "春男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "04", "name": "併殺", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "08", "name": "ホークスキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "10", "name": "ロッテキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "20", "name": "オリックスキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "40", "name": "レオキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F1", "num": 497, "kind": "bit", "bit": "80", "name": "日ハムキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "01", "name": "おまかせ", "note": null, "section": "特殊能力", "exBin": "00000001", "exHex": "01", "exBit": 1}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "02", "name": "投球位置左（三塁側）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "04", "name": "投球位置右（一塁側）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "08", "name": "テンポ○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "10", "name": "変化球中心", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "20", "name": "速球中心", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "40", "name": "お祭り男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F2", "num": 498, "kind": "bit", "bit": "80", "name": "秋男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "01", "name": "中継ぎエース", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "02", "name": "セーブ狙い", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "04", "name": "守護神", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "08", "name": "勝利投手", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "10", "name": "スタミナ温存", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "20", "name": "スタミナ限界", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "40", "name": "調子次第", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F3", "num": 499, "kind": "bit", "bit": "80", "name": "完投", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "01", "name": "左キラー（投手）", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "02", "name": "ノミの心臓", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "04", "name": "強心臓", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "08", "name": "左のワンポイント", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "10", "name": "敗戦処理", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "20", "name": "ビハインドでも", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "40", "name": "接戦時", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F4", "num": 500, "kind": "bit", "bit": "80", "name": "リード時", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "01", "name": "鉄腕", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "02", "name": "ガソリンタンク", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "04", "name": "走者釘付", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "08", "name": "驚異の切れ味", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "10", "name": "怪童", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "20", "name": "鉄人", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "40", "name": "ガラスのハート", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F5", "num": 501, "kind": "bit", "bit": "80", "name": "不屈の魂", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "01", "name": "球界の頭脳", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "02", "name": "左腕キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "04", "name": "勝負師", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "08", "name": "変幻自在", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "10", "name": "精密機械", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "20", "name": "ドクターK", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "40", "name": "本塁打厳禁", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F6", "num": 502, "kind": "bit", "bit": "80", "name": "怪物球威", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "01", "name": "切り込み隊長", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "02", "name": "一球入魂", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "04", "name": "芸術的流し打ち", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "08", "name": "アーチスト", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "10", "name": "安打製造機", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "20", "name": "ストライク送球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "40", "name": "高速ベースラン", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F7", "num": 503, "kind": "bit", "bit": "80", "name": "電光石火", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "01", "name": "鉄の壁", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "02", "name": "魔術師", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "04", "name": "高速レーザー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "08", "name": "気迫ヘッド", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "10", "name": "代打の神様", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "20", "name": "伝説のサヨナラ男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "40", "name": "恐怖の満塁男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F8", "num": 504, "kind": "bit", "bit": "80", "name": "扇風機", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "01", "name": "剛球", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "02", "name": "闘気", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "04", "name": "気迫", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "08", "name": "奪力", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "10", "name": "絶倫", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "20", "name": "鉄腕", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "40", "name": "ささやき戦術", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1F9", "num": 505, "kind": "bit", "bit": "80", "name": "重戦車", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "01", "name": "先発起用", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "02", "name": "弱気", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "04", "name": "寡黙", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "08", "name": "援護", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "10", "name": "緊迫", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "20", "name": "神速", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "40", "name": "呪縛", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FA", "num": 506, "kind": "bit", "bit": "80", "name": "豪力", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "01", "name": "火事場の馬鹿力", "note": null, "section": "特殊能力", "exBin": "00001000", "exHex": "08", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "02", "name": "ド根性", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "04", "name": "勝利の星", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "08", "name": "ハイスピンジャイロ", "note": null, "section": "特殊能力", "exBit": 1}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "10", "name": "短く持つ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "20", "name": "抑え起用", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "40", "name": "中継ぎ起用", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FB", "num": 507, "kind": "bit", "bit": "80", "name": "先発中継ぎ起用", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "01", "name": "低球必打", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "02", "name": "高球必打", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "04", "name": "ロケットスタート", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "08", "name": "メッタ打ち", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "10", "name": "バズーカ送球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "20", "name": "広角砲", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "40", "name": "終盤力", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FC", "num": 508, "kind": "bit", "bit": "80", "name": "大番狂わせ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "01", "name": "トリックスター", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "02", "name": "かく乱", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "04", "name": "引っ張り屋", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "08", "name": "エースキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "10", "name": "内角無双", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "20", "name": "精神的支柱", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "40", "name": "外角必打", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FD", "num": 509, "kind": "bit", "bit": "80", "name": "内角必打", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "01", "name": "回またぎ○", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "02", "name": "主砲キラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "04", "name": "対変化球○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "08", "name": "内角攻め", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "10", "name": "球速安定", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "20", "name": "アウトコースヒッター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "40", "name": "インコースヒッター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FE", "num": 510, "kind": "bit", "bit": "80", "name": "緊急登板○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "01", "name": "オープナー", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "02", "name": "カット打ち", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "04", "name": "ラインドライブ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "08", "name": "国際大会×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "10", "name": "国際大会○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "20", "name": "フル出場", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "40", "name": "ギアチェンジ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "1FF", "num": 511, "kind": "bit", "bit": "80", "name": "ダメ押し", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "01", "name": "渾身の決勝打", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "02", "name": "決勝打", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "04", "name": "ストレートキラー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "08", "name": "対ストレート〇", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "10", "name": "対ランナー×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "20", "name": "対ランナー〇", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "40", "name": "休養", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "200", "num": 512, "kind": "bit", "bit": "80", "name": "ショートスターター", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "01", "name": "逆襲", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "02", "name": "リベンジ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "04", "name": "ゴロピッチャー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "08", "name": "フライボールピッチャー", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "10", "name": "ナチュラルシュート", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "20", "name": "真っスラ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "40", "name": "おかわり", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "201", "num": 513, "kind": "bit", "bit": "80", "name": "マルチ弾", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "01", "name": "投打躍動", "note": null, "section": "特殊能力", "exBin": "00000001", "exHex": "01", "exBit": 1}, {"offset": "202", "num": 514, "kind": "bit", "bit": "02", "name": "暴れ球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "04", "name": "荒れ球", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "08", "name": "クロスキャノン", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "10", "name": "ディレイドアーム", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "20", "name": "闘魂", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "40", "name": "ヒートアップ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "202", "num": 514, "kind": "bit", "bit": "80", "name": "窮地○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "01", "name": "交流戦×", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "02", "name": "交流戦○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "04", "name": "要所○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "08", "name": "完全燃焼", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "10", "name": "全開", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "20", "name": "トップギア", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "40", "name": "立ち上がり○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "203", "num": 515, "kind": "bit", "bit": "80", "name": "超投打躍動", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "01", "name": "ホーム×", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "02", "name": "ホーム○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "04", "name": "逆シリーズ男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "08", "name": "シリーズ男", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "10", "name": "外国人×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "20", "name": "外国人○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "40", "name": "サンデー×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "204", "num": 516, "kind": "bit", "bit": "80", "name": "サンデー○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "01", "name": "ドーム×", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "02", "name": "ドーム○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "04", "name": "ナイトゲーム×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "08", "name": "ナイトゲーム○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "10", "name": "デイゲーム×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "20", "name": "デイゲーム○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "40", "name": "ビジター×", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "205", "num": 517, "kind": "bit", "bit": "80", "name": "ビジター○", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "01", "name": "存在感（野手）", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "02", "name": "死球集中", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "04", "name": "SHO-TIME", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "08", "name": "Big Fly", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "10", "name": "ミスター３ラン", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "20", "name": "ミスター２ラン", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "40", "name": "古巣に弱い", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "206", "num": 518, "kind": "bit", "bit": "80", "name": "古巣に強い", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "01", "name": "ボール先行", "note": null, "section": "特殊能力", "exBin": "00000000", "exHex": "00", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "02", "name": "ストライク先行", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "04", "name": "ブロッキング", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "08", "name": "ささやき破り", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "10", "name": "帳尻合わせ", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "20", "name": "火消し", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "40", "name": "安全圏◯", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "207", "num": 519, "kind": "bit", "bit": "80", "name": "存在感（投手）", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "01", "name": null, "note": null, "section": "特殊能力", "exBin": "10000000", "exHex": "80", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "02", "name": null, "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "04", "name": null, "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "08", "name": null, "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "10", "name": null, "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "20", "name": null, "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "40", "name": "フレーミング◎", "note": null, "section": "特殊能力", "exBit": 0}, {"offset": "208", "num": 520, "kind": "bit", "bit": "80", "name": "フレーミング◯", "note": null, "section": "特殊能力", "exBit": 1}], "conv_rank": [{"v": 0, "rank": "G"}, {"v": 1, "rank": "G"}, {"v": 2, "rank": "G"}, {"v": 3, "rank": "G"}, {"v": 4, "rank": "G"}, {"v": 5, "rank": "G"}, {"v": 6, "rank": "G"}, {"v": 7, "rank": "G"}, {"v": 8, "rank": "G"}, {"v": 9, "rank": "G"}, {"v": 10, "rank": "G"}, {"v": 11, "rank": "G"}, {"v": 12, "rank": "G"}, {"v": 13, "rank": "G"}, {"v": 14, "rank": "G"}, {"v": 15, "rank": "G"}, {"v": 16, "rank": "G"}, {"v": 17, "rank": "G"}, {"v": 18, "rank": "G"}, {"v": 19, "rank": "G"}, {"v": 20, "rank": "F"}, {"v": 21, "rank": "F"}, {"v": 22, "rank": "F"}, {"v": 23, "rank": "F"}, {"v": 24, "rank": "F"}, {"v": 25, "rank": "F"}, {"v": 26, "rank": "F"}, {"v": 27, "rank": "F"}, {"v": 28, "rank": "F"}, {"v": 29, "rank": "F"}, {"v": 30, "rank": "F"}, {"v": 31, "rank": "F"}, {"v": 32, "rank": "F"}, {"v": 33, "rank": "F"}, {"v": 34, "rank": "F"}, {"v": 35, "rank": "F"}, {"v": 36, "rank": "F"}, {"v": 37, "rank": "F"}, {"v": 38, "rank": "F"}, {"v": 39, "rank": "F"}, {"v": 40, "rank": "E"}, {"v": 41, "rank": "E"}, {"v": 42, "rank": "E"}, {"v": 43, "rank": "E"}, {"v": 44, "rank": "E"}, {"v": 45, "rank": "E"}, {"v": 46, "rank": "E"}, {"v": 47, "rank": "E"}, {"v": 48, "rank": "E"}, {"v": 49, "rank": "E"}, {"v": 50, "rank": "D"}, {"v": 51, "rank": "D"}, {"v": 52, "rank": "D"}, {"v": 53, "rank": "D"}, {"v": 54, "rank": "D"}, {"v": 55, "rank": "D"}, {"v": 56, "rank": "D"}, {"v": 57, "rank": "D"}, {"v": 58, "rank": "D"}, {"v": 59, "rank": "D"}, {"v": 60, "rank": "C"}, {"v": 61, "rank": "C"}, {"v": 62, "rank": "C"}, {"v": 63, "rank": "C"}, {"v": 64, "rank": "C"}, {"v": 65, "rank": "C"}, {"v": 66, "rank": "C"}, {"v": 67, "rank": "C"}, {"v": 68, "rank": "C"}, {"v": 69, "rank": "C"}, {"v": 70, "rank": "B"}, {"v": 71, "rank": "B"}, {"v": 72, "rank": "B"}, {"v": 73, "rank": "B"}, {"v": 74, "rank": "B"}, {"v": 75, "rank": "B"}, {"v": 76, "rank": "B"}, {"v": 77, "rank": "B"}, {"v": 78, "rank": "B"}, {"v": 79, "rank": "B"}, {"v": 80, "rank": "A"}, {"v": 81, "rank": "A"}, {"v": 82, "rank": "A"}, {"v": 83, "rank": "A"}, {"v": 84, "rank": "A"}, {"v": 85, "rank": "A"}, {"v": 86, "rank": "A"}, {"v": 87, "rank": "A"}, {"v": 88, "rank": "A"}, {"v": 89, "rank": "A"}, {"v": 90, "rank": "S"}, {"v": 91, "rank": "S"}, {"v": 92, "rank": "S"}, {"v": 93, "rank": "S"}, {"v": 94, "rank": "S"}, {"v": 95, "rank": "S"}, {"v": 96, "rank": "S"}, {"v": 97, "rank": "S"}, {"v": 98, "rank": "S"}, {"v": 99, "rank": "S"}, {"v": 100, "rank": "S"}], "conv_pos": [{"code": 1, "name": "投"}, {"code": 2, "name": "捕"}, {"code": 3, "name": "一"}, {"code": 4, "name": "二"}, {"code": 5, "name": "三"}, {"code": 6, "name": "遊"}, {"code": 7, "name": "外"}], "conv_lvl": [{"coef": 0, "mark": "×"}, {"coef": 0.1, "mark": "△"}, {"coef": 0.2, "mark": "○"}], "pitch_types": [{"code": "0x00", "name": "ストレート"}, {"code": "0x01", "name": "error"}, {"code": "0x02", "name": "ツーシーム"}, {"code": "0x03", "name": "ムービングファスト"}, {"code": "0x04", "name": "超スローボール"}, {"code": "0x05", "name": "スライダー"}, {"code": "0x06", "name": "Hスライダー"}, {"code": "0x07", "name": "カットボール"}, {"code": "0x08", "name": "カーブ"}, {"code": "0x09", "name": "スローカーブ"}, {"code": "0x0A", "name": "ドロップ"}, {"code": "0x0B", "name": "スラーブ"}, {"code": "0x0C", "name": "Dカーブ"}, {"code": "0x0D", "name": "ナックルカーブ"}, {"code": "0x0E", "name": "フォーク"}, {"code": "0x0F", "name": "パーム"}, {"code": "0x10", "name": "ナックル"}, {"code": "0x11", "name": "Vスライダー"}, {"code": "0x12", "name": "SFF"}, {"code": "0x13", "name": "チェンジアップ"}, {"code": "0x14", "name": "シンカー（スクリュー）"}, {"code": "0x15", "name": "error"}, {"code": "0x16", "name": "Hシンカー"}, {"code": "0x17", "name": "サークルチェンジ"}, {"code": "0x18", "name": "シュート"}, {"code": "0x19", "name": "Hシュート"}, {"code": "0x1A", "name": "オリジナル変化球"}, {"code": "0x1B", "name": ""}, {"code": "0x1C", "name": "パワーカーブ"}, {"code": "0x1D", "name": "シンキングツーシーム"}, {"code": "0x1E", "name": "Dスライダー"}, {"code": "0x1F", "name": "ファストチェンジ"}, {"code": "0x20", "name": "シンキングスプリット"}], "example": {"pointer": "39B299C0", "abilities": [{"name": "メインポジション", "value": 3, "rank": "一", "disp": "投 Lv."}, {"name": "弾道", "value": 4, "rank": 4, "disp": "補 Lv."}, {"name": "ミート", "value": 83, "rank": "A", "disp": "一 Lv."}, {"name": "パワー", "value": 94, "rank": "S", "disp": "二 Lv."}, {"name": "走力", "value": 51, "rank": "D", "disp": "三 Lv."}, {"name": "肩力", "value": 64, "rank": "C", "disp": "遊 Lv."}, {"name": "守備力", "value": 74, "rank": "B", "disp": "外 Lv."}, {"name": "捕球", "value": 77, "rank": "B", "disp": null}, {"name": "球速", "value": 80, "rank": null, "disp": "80 km/h"}, {"name": "コントロール", "value": 33, "rank": null, "disp": "F"}, {"name": "スタミナ", "value": 4, "rank": null, "disp": "G"}, {"name": "先発適正", "value": 2, "rank": null, "disp": "先発○"}, {"name": "中継適正", "value": 1, "rank": null, "disp": "中継△"}, {"name": "抑え適正", "value": 0, "rank": null, "disp": "抑え×"}], "pitches": [{"name": "スライダー系", "type": "1b", "amt": 0, "disp": ""}, {"name": "カーブ系", "type": "1e", "amt": 3, "disp": "Dスライダー 3"}, {"name": "フォーク系", "type": "1b", "amt": 0, "disp": ""}, {"name": "シンカー系", "type": "1f", "amt": 3, "disp": "ファストチェンジ 3"}, {"name": "シュート系", "type": "1b", "amt": 0, "disp": ""}, {"name": "第一ストレート", "type": "0", "amt": 1, "disp": "ストレート 1"}, {"name": "第二ストレート", "type": "1b", "amt": 0, "disp": ""}, {"name": "第二変化球", "type": "20", "amt": 4, "disp": "シンキングスプリット 4"}], "hexdump": [{"offset": "0x120", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, "4F", "BD"]}, {"offset": "0x130", "bytes": ["C0", "99", "B2", "39", "77", "39", "05", "19", "80", "10", "01", null, null, null, null, null]}, {"offset": "0x140", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x150", "bytes": [null, null, null, null, "1B", "00", "1E", "03", "1B", "00", "1F", "03", "1B", "00", "00", "01"]}, {"offset": "0x160", "bytes": ["1B", "00", "20", "04", null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x170", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x180", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x190", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x1A0", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x1B0", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x1C0", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x1D0", "bytes": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null]}, {"offset": "0x1E0", "bytes": ["75", "B6", "D9", "50", "00", "04", "0D", "86", "D9", "18", "00", "00", "04", "00", "00", "08"]}, {"offset": "0x1F0", "bytes": ["00", "00", "01", "00", "00", "00", "00", "00", "00", "00", "00", "08", "00", "00", "00", "00"]}, {"offset": "0x200", "bytes": ["00", "00", "01", "00", "00", "00", "00", "00", "80", null, null, null, null, null, null, null]}]}, "effect_only": [{"code": "0x00", "cnum": 0, "name": "なし"}, {"code": "0x01", "cnum": 1, "name": "全力ストレート"}, {"code": "0x02", "cnum": 2, "name": "マリンボールタイプ"}, {"code": "0x03", "cnum": 3, "name": "クレッセントムーンタイプ"}, {"code": "0x04", "cnum": 4, "name": "ライジングキャノンタイプ"}, {"code": "0x05", "cnum": 5, "name": "ライジングショットタイプ"}, {"code": "0x06", "cnum": 6, "name": "爆速ストレートタイプ"}, {"code": "0x08", "cnum": 8, "name": "ダークネビュラタイプ"}, {"code": "0x09", "cnum": 9, "name": "ムネアツシュートタイプ"}, {"code": "0x0A", "cnum": 10, "name": "ホワイトストームタイプ"}, {"code": "0x0B", "cnum": 11, "name": "フェスティバルタイプ"}, {"code": "0x0C", "cnum": 12, "name": "パワフェスボールタイプ"}, {"code": "0x0D", "cnum": 13, "name": "ジャイロボール（茂野）タイプ"}, {"code": "0x0E", "cnum": 14, "name": "ジャイロボール（眉村）タイプ"}, {"code": "0x0F", "cnum": 15, "name": "ロゼルージュタイプ"}, {"code": "0x11", "cnum": 17, "name": "サンダーボルトタイプ"}, {"code": "0x13", "cnum": 19, "name": "エクスカリバータイプ"}, {"code": "0x14", "cnum": 20, "name": "ランブルフォールタイプ"}, {"code": "0x15", "cnum": 21, "name": "Ωランブルフォールタイプ"}, {"code": "0x17", "cnum": 23, "name": "クライダータイプ"}, {"code": "0x18", "cnum": 24, "name": "ココロブレイクタイプ"}, {"code": "0x19", "cnum": 25, "name": "レインボーライザータイプ"}, {"code": "0x1A", "cnum": 26, "name": "ブレッドシュートタイプ"}, {"code": "0x1B", "cnum": 27, "name": "むねあつシュートタイプ"}, {"code": "0x20", "cnum": 32, "name": "邪眼球タイプ"}, {"code": "0x22", "cnum": 34, "name": "爆裂ストレートタイプ"}, {"code": "0x23", "cnum": 35, "name": "天使降臨タイプ"}, {"code": "0x24", "cnum": 36, "name": "こころシェイクタイプ"}, {"code": "0x27", "cnum": 39, "name": "オクトスモークタイプ"}, {"code": "0x29", "cnum": 41, "name": "カイザーライジングタイプ"}, {"code": "0x2D", "cnum": 45, "name": "サンダーストームタイプ"}, {"code": "0x2E", "cnum": 46, "name": "カオスハーモニータイプ"}, {"code": "0x30", "cnum": 48, "name": "ハーモニーアロータイプ"}, {"code": "0x31", "cnum": 49, "name": "バニシングクロスタイプ"}, {"code": "0x34", "cnum": 52, "name": "スターダストＳタイプ"}, {"code": "0x38", "cnum": 56, "name": "ルミナスアーツ・燦タイプ"}, {"code": "0x39", "cnum": 57, "name": "ホワイトアウトタイプ"}, {"code": "0x3B", "cnum": 59, "name": "ＫＢＫカーブタイプ"}, {"code": "0x3C", "cnum": 60, "name": "プロミネンスボールタイプ"}, {"code": "0x3D", "cnum": 61, "name": "フォトンブレイザータイプ"}, {"code": "0x42", "cnum": 66, "name": "フローターパールタイプ"}, {"code": "0x48", "cnum": 72, "name": "ボンバーシュートタイプ"}, {"code": "0x4A", "cnum": 74, "name": "アクアマリンボールタイプ"}, {"code": "0x4C", "cnum": 76, "name": "魔王弾タイプ"}, {"code": "0x4D", "cnum": 77, "name": "大魔王弾タイプ"}], "commentary_effect": [{"code": "0x00", "cnum": 0, "name": "なし"}, {"code": "0x01", "cnum": 1, "name": "アバタボール"}, {"code": "0x02", "cnum": 2, "name": "マリンボール"}, {"code": "0x03", "cnum": 3, "name": "クレッセントムーン"}, {"code": "0x04", "cnum": 4, "name": "ライジングキャノン"}, {"code": "0x06", "cnum": 6, "name": "ワンシーム"}, {"code": "0x07", "cnum": 7, "name": "ソニックライジング"}, {"code": "0x08", "cnum": 8, "name": "ミラージュナックル"}, {"code": "0x09", "cnum": 9, "name": "爆速ストレート"}, {"code": "0x0C", "cnum": 12, "name": "ホワイトストーム"}, {"code": "0x0F", "cnum": 15, "name": "暗黒星雲"}, {"code": "0x11", "cnum": 17, "name": "超真魔球改"}, {"code": "0x12", "cnum": 18, "name": "ロゼルージュ"}, {"code": "0x15", "cnum": 21, "name": "スタードライブ"}, {"code": "0x17", "cnum": 23, "name": "むねあつシュート / ブレッドシュート"}, {"code": "0x1C", "cnum": 28, "name": "サンダーボルト"}, {"code": "0x1D", "cnum": 29, "name": "メテオマグナム"}, {"code": "0x21", "cnum": 33, "name": "シルバーバレット"}, {"code": "0x22", "cnum": 34, "name": "ランブルフォール"}, {"code": "0x29", "cnum": 41, "name": "オクトスモーク"}, {"code": "0x2A", "cnum": 42, "name": "ミオストレート"}, {"code": "0x2B", "cnum": 43, "name": "カイザーライジング"}, {"code": "0x2C", "cnum": 44, "name": "カオスハーモニー"}, {"code": "0x2D", "cnum": 45, "name": "獅子奮迅"}, {"code": "0x2E", "cnum": 46, "name": "サンドストーム"}, {"code": "0x2F", "cnum": 47, "name": "ハーモニーアロー"}, {"code": "0x30", "cnum": 48, "name": "ミラージュストレート"}, {"code": "0x31", "cnum": 49, "name": "マエケンスライダー"}, {"code": "0x32", "cnum": 50, "name": "スプリーム"}, {"code": "0x33", "cnum": 51, "name": "バニシングクロス"}, {"code": "0x35", "cnum": 53, "name": "ＫＢＫカーブ"}, {"code": "0x37", "cnum": 55, "name": "フォトンブレイザー"}, {"code": "0x42", "cnum": 66, "name": "アクアマリンボール"}]};
+
+/* ===================== MODEL ===================== */
+const RE=/^(.*?)\+([0-9A-Fa-f]+)$/;
+const NUMF={}, BOOL=[], BYTEF=[];
+const exBitInit={};  // "off:mask" -> 0/1 from sample
+DATA.struct.forEach(r=>{
+  const onum=parseInt(r.offset,16);
+  if(r.kind==='byte'){ BYTEF.push({off:onum,name:r.name,section:r.section,note:r.note}); return; }
+  if(!r.name||r.name==='-')return;
+  const mask=parseInt(r.bit,16);
+  if(r.exBit===0||r.exBit===1) exBitInit[onum+':'+mask]=r.exBit;
+  const m=RE.exec(r.name);
+  if(m){const base=m[1],w=parseInt(m[2],16);
+    const f=NUMF[base]||(NUMF[base]={base,section:r.section,bits:[],firstOff:onum,note:null});
+    f.bits.push({off:onum,mask,weight:w}); if(r.note&&!f.note)f.note=r.note;
+  }else{ BOOL.push({off:onum,mask,name:r.name,section:r.section,note:r.note}); }
+});
+Object.values(NUMF).forEach(f=>{f.max=f.bits.reduce((a,b)=>a+b.weight,0);
+  f.offsets=[...new Set(f.bits.map(b=>b.off))].sort((a,b)=>a-b);});
+
+const MODELED=new Set();
+Object.values(NUMF).forEach(f=>f.bits.forEach(b=>MODELED.add(b.off)));
+BOOL.forEach(b=>MODELED.add(b.off));
+BYTEF.forEach(b=>MODELED.add(b.off));
+MODELED.add(0x1C0);MODELED.add(0x1C1);
+
+/* --- text & registration fields (絶対base ニックネーム=0x96B8 → 相対0x00) --- */
+const TEXTF=[
+  {key:'nick', label:'ニックネーム',      off:0x00, len:0x1D-0x00+1, abs:0x96B8},
+  {key:'sei',  label:'名前（姓）',         off:0xA8, len:0xC5-0xA8+1, abs:0x9760},
+  {key:'mei',  label:'名前（名）',         off:0x54, len:0x71-0x54+1, abs:0x970C},
+  {key:'senum',label:'背ネーム',           off:0xFC, len:0x108-0xFC+1, abs:0x97B4},
+  {key:'orig', label:'オリジナル変化球名', off:0x164,len:30,           abs:null},
+];
+TEXTF.forEach(t=>{for(let i=0;i<t.len;i++)MODELED.add(t.off+i);});
+MODELED.add(0x11D);MODELED.add(0x120);MODELED.add(0x121);
+function rangeOffs(off,len){const a=[];for(let i=0;i<len;i++)a.push(off+i);return a.join(',');}
+const TENC=new TextEncoder();
+function encUTF8(str,len){const out=new Uint8Array(len);let pos=0;for(const ch of(str||'')){const b=TENC.encode(ch);if(pos+b.length>len)break;out.set(b,pos);pos+=b.length;}return out;}
+function decUTF8(map,off,len){const a=[];for(let i=0;i<len;i++)a.push(map[off+i]||0);while(a.length&&a[a.length-1]===0)a.pop();try{return new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(a));}catch(e){return '';}}
+function usedBytes(str,len){let n=0;for(const ch of(str||'')){const b=TENC.encode(ch).length;if(n+b>len)break;n+=b;}return n;}
+
+/* sample bytes from example hexdump */
+const SAMPLE={};
+DATA.example.hexdump.forEach(row=>{const base=parseInt(row.offset.replace('0x',''),16);
+  row.bytes.forEach((by,i)=>{ if(by!=null && by!==''){SAMPLE[base+i]=parseInt(String(by),16);} });});
+
+/* ===================== STATE ===================== */
+const stat={};   // numeric field base -> value
+const flags={};  // "off:mask" -> bool
+const bytef={};  // byte field off -> value(0-255)
+let faceVal=0;
+const textVals={};                 // text key -> string
+let thrLeft=false, batMode=0, regType=0, nameRev=false;
+
+function decodeFrom(bytesMap){
+  for(const k in stat)delete stat[k];
+  for(const k in flags)delete flags[k];
+  for(const k in bytef)delete bytef[k];
+  Object.values(NUMF).forEach(f=>{let v=0;f.bits.forEach(b=>{if((bytesMap[b.off]||0)&b.mask)v|=b.weight;});stat[f.base]=v;});
+  BOOL.forEach(b=>{flags[b.off+':'+b.mask]=!!((bytesMap[b.off]||0)&b.mask);});
+  BYTEF.forEach(b=>{bytef[b.off]=(bytesMap[b.off]||0);});
+  faceVal=((bytesMap[0x1C1]||0)<<8)|(bytesMap[0x1C0]||0);
+  TEXTF.forEach(t=>textVals[t.key]=decUTF8(bytesMap,t.off,t.len));
+  thrLeft=!!((bytesMap[0x11D]||0)&0x01);
+  batMode=((bytesMap[0x11D]||0)&0x08)?2:(((bytesMap[0x11D]||0)&0x04)?1:0);
+  regType=(((bytesMap[0x120]||0)&0x80)?1:0)|(((bytesMap[0x121]||0)&0x01)?2:0);
+  nameRev=!!((bytesMap[0x121]||0)&0x02);
+}
+function loadSample(){decodeFrom(SAMPLE);}
+function loadZero(){decodeFrom({});}
+
+/* ===================== ENCODE ===================== */
+function computeBytes(){
+  const B={}; MODELED.forEach(o=>B[o]=0);
+  Object.values(NUMF).forEach(f=>{const v=stat[f.base]|0;f.bits.forEach(b=>{if(v&b.weight)B[b.off]|=b.mask;});});
+  BOOL.forEach(b=>{if(flags[b.off+':'+b.mask])B[b.off]|=b.mask;});
+  BYTEF.forEach(b=>{const v=bytef[b.off];if(v!=null&&v!=='')B[b.off]=(parseInt(v,10)||0)&0xff;});
+  B[0x1C0]=faceVal&0xff; B[0x1C1]=(faceVal>>8)&0xff;
+  TEXTF.forEach(t=>{const bs=encUTF8(textVals[t.key],t.len);for(let i=0;i<t.len;i++)B[t.off+i]=bs[i];});
+  if(thrLeft)B[0x11D]|=0x01;
+  if(batMode===1)B[0x11D]|=0x04; else if(batMode===2)B[0x11D]|=0x08;
+  if(regType&1)B[0x120]|=0x80;
+  if(regType&2)B[0x121]|=0x01;
+  if(nameRev)B[0x121]|=0x02;
+  return B;
+}
+
+/* ===================== HEX DUMP ===================== */
+const DUMP_LO=0x000, DUMP_HI=0x20F;
+let focusOffsets=new Set();
+function renderDump(){
+  const B=computeBytes();
+  let h='<table><tr><th></th>';
+  for(let i=0;i<16;i++)h+='<th>'+i.toString(16).toUpperCase().padStart(2,'0')+'</th>';
+  h+='</tr>';
+  for(let base=DUMP_LO;base<=DUMP_HI;base+=16){
+    h+='<tr><td class="o">0x'+base.toString(16).toUpperCase()+'</td>';
+    for(let i=0;i<16;i++){const off=base+i;
+      let cls='b',txt;
+      if(!MODELED.has(off)){ if(SAMPLE[off]!=null){txt=SAMPLE[off].toString(16).toUpperCase().padStart(2,'0');cls='n';} else {txt='··';cls='n';} }
+      else{const v=B[off]||0; txt=v.toString(16).toUpperCase().padStart(2,'0'); cls='b'+(v?' nz':' z');}
+      if(focusOffsets.has(off))cls+=' foc';
+      h+='<td class="'+cls+'" data-off="'+off+'">'+txt+'</td>';
+    }
+    h+='</tr>';
+  }
+  h+='</table>';
+  document.getElementById('hexDump').innerHTML=h;
+  // contiguous string 0x12E-0x208
+  let s=[];for(let o=0x12E;o<=0x208;o++){const v=MODELED.has(o)?(B[o]||0):(SAMPLE[o]||0);s.push(v.toString(16).toUpperCase().padStart(2,'0'));}
+  document.getElementById('hexStr').value=s.join(' ');
+}
+function setFocus(offs){focusOffsets=new Set(offs);renderDump();}
+function clearFocus(){if(focusOffsets.size){focusOffsets=new Set();renderDump();}}
+
+/* ===================== EDITOR UI ===================== */
+function esc(s){return(s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+const SECV={'基本情報':'--s-base','能力値':'--s-abil','守備':'--s-def','適性':'--s-apt','球速・制球・スタミナ':'--s-pcs','打撃フォーム':'--s-form','球種':'--s-pitch','オリジナル変化球名':'--s-orig','オリ変パラメータ':'--s-origp','顔':'--s-face','特殊能力':'--s-sp','不明領域':'--s-unk','その他':'--s-etc'};
+function rankOf(v){v=Math.max(0,Math.min(100,v|0));const lut=rankLUT;return lut[v]||'';}
+const rankLUT={}; DATA.conv_rank.forEach(r=>rankLUT[r.v]=r.rank);
+/* per-field max overrides (game caps below the raw bit-width max) */
+const MAXOVR={'送球':89};
+function fmax(base){return (MAXOVR[base]!=null)?MAXOVR[base]:(NUMF[base]?NUMF[base].max:255);}
+
+let UID=0;
+function group(title,sec,openOpen,inner){
+  const cv='var('+(SECV[sec]||'--s-etc')+')';
+  return '<details class="edgroup" '+(openOpen?'open':'')+' style="--c:'+cv+'"><summary><span class="bar"></span>'+esc(title)+'<span class="chev">▶</span></summary><div class="body">'+inner+'</div></details>';
+}
+function offsetsForBase(base){return (NUMF[base]?NUMF[base].offsets:[]);}
+function byteRefStr(offs){return offs.map(o=>'0x'+o.toString(16).toUpperCase()).join(',');}
+
+/* numeric stat control */
+function statCtl(base,opt){
+  opt=opt||{};const f=NUMF[base];if(!f)return '';
+  const max=opt.max||MAXOVR[base]||f.max;const id='s'+(UID++);
+  const offs=f.offsets;
+  let extra=opt.rank?'<span class="rkbadge" id="'+id+'r"></span>':'';
+  return '<div class="frow" data-offs="'+offs.join(',')+'">'+
+    '<label>'+esc(opt.label||base)+'</label>'+
+    '<div class="ctl">'+
+      '<input type="range" class="rng" min="0" max="'+max+'" data-stat="'+esc(base)+'" id="'+id+'g">'+
+      '<input type="number" min="0" max="'+max+'" data-stat="'+esc(base)+'" id="'+id+'n">'+
+      extra+'<span class="byteref">'+byteRefStr(offs)+'</span>'+
+    '</div></div>';
+}
+/* text field control (UTF-8) */
+function textCtl(t){
+  const absStr=t.abs!=null?('0x'+t.abs.toString(16).toUpperCase()):('rel 0x'+t.off.toString(16).toUpperCase());
+  return '<div class="frow" data-offs="'+rangeOffs(t.off,t.len)+'"><label>'+esc(t.label)+'</label>'+
+    '<div class="ctl" style="flex-direction:column;align-items:stretch;gap:5px">'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="text" data-text="'+t.key+'" maxlength="'+t.len+'" style="flex:1;min-width:170px" placeholder="（最大'+t.len+'バイト）">'+
+      '<span class="byteref">'+absStr+' / '+t.len+'B</span></div>'+
+      '<div class="byteref tprev" id="pv_'+t.key+'" style="word-break:break-all;line-height:1.55"></div>'+
+    '</div></div>';
+}
+function updateTextPrev(key){const el=document.getElementById('pv_'+key);if(!el)return;const t=TEXTF.find(x=>x.key===key);
+  const bs=encUTF8(textVals[key],t.len);const hexs=[...bs].map(b=>b.toString(16).toUpperCase().padStart(2,'0')).join(' ');
+  const used=usedBytes(textVals[key],t.len);const absStr=t.abs!=null?('0x'+t.abs.toString(16).toUpperCase()):('rel 0x'+t.off.toString(16).toUpperCase());
+  el.innerHTML='<span style="color:var(--acc2)">'+absStr+':</span> '+hexs+'  <span style="color:var(--mut)">('+used+'/'+t.len+'B)</span>';}
+/* 球速: km/h input (raw0=80km/h .. raw127=207km/h) */
+function speedCtl(){
+  const f=NUMF['球速'];if(!f)return '';const offs=f.offsets;const id='sp'+(UID++);
+  return '<div class="frow" data-offs="'+offs.join(',')+'"><label>球速</label><div class="ctl">'+
+    '<input type="range" class="rng" min="80" max="207" data-speed="1" id="'+id+'g">'+
+    '<input type="number" min="80" max="207" data-speed="1" id="'+id+'n">'+
+    '<span style="color:var(--mut);font-size:12px">km/h</span>'+
+    '<span class="byteref">raw0–127 '+byteRefStr(offs)+'</span></div></div>';
+}
+/* select bound to numeric stat (value=code) */
+function statSelect(base,options,label){
+  const f=NUMF[base];if(!f)return '';const offs=f.offsets;
+  let o=options.map(op=>'<option value="'+op.v+'">'+esc(op.t)+'</option>').join('');
+  return '<div class="frow" data-offs="'+offs.join(',')+'"><label>'+esc(label||base)+'</label>'+
+    '<div class="ctl"><select data-stat="'+esc(base)+'" data-sel="1">'+o+'</select>'+
+    '<span class="byteref">'+byteRefStr(offs)+'</span></div></div>';
+}
+/* byte-field select (pitch type / amount) */
+function byteSelect(off,options,label){
+  let o=options.map(op=>'<option value="'+op.v+'">'+esc(op.t)+'</option>').join('');
+  return '<div class="frow" data-offs="'+off+'"><label>'+esc(label)+'</label>'+
+    '<div class="ctl"><select data-byte="'+off+'">'+o+'</select>'+
+    '<span class="byteref">0x'+off.toString(16).toUpperCase()+'</span></div></div>';
+}
+function byteNum(off,label,max){
+  return '<div class="frow" data-offs="'+off+'"><label>'+esc(label)+'</label>'+
+    '<div class="ctl"><input type="number" min="0" max="'+(max||255)+'" data-byte="'+off+'">'+
+    '<span class="byteref">0x'+off.toString(16).toUpperCase()+'</span></div></div>';
+}
+
+function buildEditor(){
+  let H='';
+  /* --- 名前・登録名 --- */
+  let nm='';
+  ['nick','sei','mei','senum'].forEach(k=>{const t=TEXTF.find(x=>x.key===k);if(t)nm+=textCtl(t);});
+  nm+='<div class="frow" data-offs="'+0x11D+'"><label>投/打</label><div class="ctl">'+
+    '<select data-throw="1"><option value="0">右投</option><option value="1">左投</option></select>'+
+    '<select data-bat="1"><option value="0">右打</option><option value="1">左打</option><option value="2">両打</option></select>'+
+    '<span class="byteref">0x11D (abs 0x97D5)</span></div></div>';
+  nm+='<div class="frow" data-offs="288,289"><label>登録名タイプ</label><div class="ctl">'+
+    '<select data-regtype="1"><option value="0">ニックネーム</option><option value="1">姓</option><option value="2">名</option><option value="3">姓+名</option></select>'+
+    '<label style="display:flex;gap:5px;align-items:center;font-size:12.5px;color:var(--ink)"><input type="checkbox" data-namerev="1" style="width:15px;height:15px;accent-color:var(--hot)">姓名反転</label>'+
+    '<span class="byteref">0x120/0x121</span></div></div>';
+  H+=group('名前・登録名','基本情報',true,nm+'<p class="note">UTF-8（日本語1文字=3バイト）。各欄の下に生成バイト列と絶対アドレスを表示。選手レコードの絶対base = ニックネーム 0x96B8。</p>');
+
+  /* --- 基本能力 --- */
+  let abil='';
+  // 弾道 select (value 0-3 => 弾道1-4)
+  if(NUMF['弾道']){
+    const offs=NUMF['弾道'].offsets;
+    abil+='<div class="frow" data-offs="'+offs.join(',')+'"><label>弾道</label><div class="ctl">'+
+      '<select data-stat="弾道" data-sel="1"><option value="0">弾道1</option><option value="1">弾道2</option><option value="2">弾道3</option><option value="3">弾道4</option></select>'+
+      '<span class="byteref">'+byteRefStr(offs)+'</span></div></div>';
+  }
+  abil+='<div class="grid2">';
+  ['ミート','パワー','走力','肩力','守備力','捕球'].forEach(b=>{abil+=statCtl(b,{rank:true,max:100});});
+  abil+='</div>';
+  H+=group('基本能力','能力値',true,abil);
+
+  /* --- 球速・制球・スタミナ --- */
+  let pcs=speedCtl();
+  pcs+='<div class="grid2">';
+  ['コントロール','スタミナ'].forEach(b=>{if(NUMF[b])pcs+=statCtl(b,{label:b,rank:true,max:100});});
+  pcs+='</div>';
+  H+=group('球速・コントロール・スタミナ','球速・制球・スタミナ',true,pcs);
+
+  /* --- 守備 --- */
+  let def='';
+  if(NUMF['守備位置']){const pos=[{v:0,t:'(なし)'}].concat(DATA.conv_pos.map(p=>({v:p.code,t:p.code+':'+p.name})));
+    def+=statSelect('守備位置',pos,'守備位置');}
+  const lv=Object.keys(NUMF).filter(b=>b.indexOf('守備レベル')>=0).sort();
+  if(lv.length){def+='<div class="grid2">';lv.forEach(b=>{def+=statCtl(b,{label:b,max:7});});def+='</div>';}
+  if(def)H+=group('守備（位置・守備レベル）','守備',false,def);
+
+  /* --- 適性 --- */
+  function aptSel(name,b1,b2){
+    // b1 = △ flag obj, b2 = ○ flag obj
+    const f1=BOOL.find(x=>x.name===b1),f2=BOOL.find(x=>x.name===b2);
+    if(!f1||!f2)return '';
+    const offs=[f1.off];
+    return '<div class="frow" data-offs="'+offs.join(',')+'"><label>'+name+'</label><div class="ctl">'+
+      '<select data-apt="'+f1.off+':'+f1.mask+'|'+f2.off+':'+f2.mask+'">'+
+      '<option value="0">×</option><option value="1">△</option><option value="2">○</option></select>'+
+      '<span class="byteref">0x'+f1.off.toString(16).toUpperCase()+'</span></div></div>';
+  }
+  let apt=aptSel('先発適性','先発適正△','先発適正○')+aptSel('中継ぎ適性','中継ぎ適正△','中継ぎ適正○')+aptSel('抑え適性','抑え適正△','抑え適正○');
+  if(apt)H+=group('適性（先発/中継ぎ/抑え）','適性',false,apt);
+
+  /* --- 球種 --- */
+  let pit='';
+  const ptOpts=[{v:'',t:'—'}].concat(DATA.pitch_types.map(p=>({v:parseInt(p.code,16),t:p.code+' '+p.name})));
+  const amtOpts=[{v:0,t:'0'},{v:1,t:'1'},{v:2,t:'2'},{v:3,t:'3'},{v:4,t:'4'},{v:5,t:'5'},{v:6,t:'6'},{v:7,t:'7'}];
+  // pair each pitch-type byte field with the following 変化量 byte field
+  const bf=BYTEF.filter(b=>b.section==='球種').sort((a,b)=>a.off-b.off);
+  for(let i=0;i<bf.length;i++){
+    const cur=bf[i];
+    if(cur.name==='変化量')continue;
+    pit+='<div class="frow" data-offs="'+cur.off+'"><label>'+esc(cur.name)+'</label><div class="ctl">'+
+      '<select data-byte="'+cur.off+'">'+ptOpts.map(op=>'<option value="'+op.v+'">'+esc(op.t)+'</option>').join('')+'</select>';
+    // amount immediately after?
+    if(bf[i+1]&&bf[i+1].name==='変化量'){const ao=bf[i+1].off;
+      pit+='<span style="color:var(--mut);font-size:12px">変化量</span><select data-byte="'+ao+'">'+amtOpts.map(op=>'<option value="'+op.v+'">'+op.t+'</option>').join('')+'</select>';
+      pit+='<span class="byteref">0x'+cur.off.toString(16).toUpperCase()+'/0x'+ao.toString(16).toUpperCase()+'</span>';
+    } else {pit+='<span class="byteref">0x'+cur.off.toString(16).toUpperCase()+'</span>';}
+    pit+='</div></div>';
+  }
+  if(pit)H+=group('球種（6枠＋第二）','球種',false,pit+'<p class="note">'+esc(NUMF['__none__']?'':'タイプを選び、変化量(0–7)を指定。コード対応は「変換表」タブ参照。')+'</p>');
+
+  /* --- オリジナル変化球（名称・エフェクト） --- */
+  let eff='';
+  {const t=TEXTF.find(x=>x.key==='orig');if(t)eff+=textCtl(t);}
+  if(NUMF['エフェクトのみ']){const o=[{v:0,t:'0x00 なし'}].concat(DATA.effect_only.map(e=>({v:e.cnum,t:e.code+' '+e.name})));
+    eff+=statSelect('エフェクトのみ',o,'エフェクトのみ (0x1B6)');}
+  if(NUMF['実況付きエフェクト']){const o=[{v:0,t:'0x00 なし'}].concat(DATA.commentary_effect.map(e=>({v:e.cnum,t:e.code+' '+e.name})));
+    eff+=statSelect('実況付きエフェクト',o,'実況付きエフェクト (0x1BB)');}
+  if(eff)H+=group('オリジナル変化球（名称・エフェクト）','オリ変パラメータ',false,eff+'<div class="prio" id="prioNote">★ 実況付きエフェクトが「なし」以外のときは、そちらが優先表示されます（エフェクトのみは無視）。</div>');
+
+  /* --- オリ変パラメータ(詳細) --- */
+  const skip=new Set(['エフェクトのみ','実況付きエフェクト']);
+  const orig=Object.values(NUMF).filter(f=>f.section==='オリ変パラメータ'&&!skip.has(f.base));
+  if(orig.length){let oh='<div class="grid2">';orig.sort((a,b)=>a.firstOff-b.firstOff).forEach(f=>{oh+=statCtl(f.base,{label:f.base});});oh+='</div>';
+    H+=group('オリジナル変化球パラメータ（詳細）','オリ変パラメータ',false,oh);}
+
+  /* --- 打撃フォーム / 顔 --- */
+  let adv='';
+  if(NUMF['打撃フォーム'])adv+=statCtl('打撃フォーム',{label:'打撃フォームID'});
+  adv+='<div class="frow" data-offs="448,449"><label>顔ID</label><div class="ctl"><input type="text" class="hex" id="faceIn" placeholder="0001"><span class="byteref">0x1C0–0x1C1 (LE)</span></div></div>';
+  H+=group('打撃フォーム・顔','顔',false,adv+'<p class="note">顔ID例: 0001=主人公 / 0003=矢部。16bitリトルエンディアン。</p>');
+
+  /* --- 特殊能力 --- */
+  let sp='<input class="spsearch" id="spSearch" placeholder="特殊能力を検索（例: チャンス, パワーヒッター, キラー）">';
+  // graded numeric special fields
+  const grad=Object.values(NUMF).filter(f=>f.section==='特殊能力').sort((a,b)=>a.firstOff-b.firstOff);
+  sp+='<div class="spgraded">';
+  grad.forEach(f=>{sp+='<div class="g spnode" data-name="'+esc(f.base)+'" data-offs="'+f.offsets.join(',')+'"><label>'+esc(f.base)+'</label>'+
+    '<input class="num" type="number" min="0" max="'+fmax(f.base)+'" data-stat="'+esc(f.base)+'"><span class="byteref">'+byteRefStr(f.offsets)+'</span></div>';});
+  sp+='</div>';
+  // boolean special abilities
+  sp+='<div class="spgrid">';
+  BOOL.filter(b=>b.section==='特殊能力').forEach(b=>{const key=b.off+':'+b.mask;const id='c'+(UID++);
+    sp+='<div class="spitem spnode" data-name="'+esc(b.name)+'" data-key="'+key+'" data-offs="'+b.off+'">'+
+      '<input type="checkbox" id="'+id+'" data-flag="'+key+'"><label for="'+id+'">'+esc(b.name)+'</label></div>';});
+  sp+='</div>';
+  H+=group('特殊能力','特殊能力',true,sp);
+
+  document.getElementById('edForm').innerHTML=H;
+  document.getElementById('edInfo').textContent='モデル化バイト '+MODELED.size+' / 数値フィールド '+Object.keys(NUMF).length+' / フラグ '+BOOL.length;
+  wireEditor();
+}
+
+/* sync DOM <- state */
+function syncUI(){
+  document.querySelectorAll('[data-stat]').forEach(el=>{const b=el.getAttribute('data-stat');el.value=stat[b]|0;});
+  document.querySelectorAll('[data-byte]').forEach(el=>{const o=+el.getAttribute('data-byte');el.value=(bytef[o]|0);});
+  document.querySelectorAll('[data-speed]').forEach(el=>{el.value=(stat['球速']|0)+80;});
+  document.querySelectorAll('[data-flag]').forEach(el=>{el.checked=!!flags[el.getAttribute('data-flag')];
+    el.closest('.spitem').classList.toggle('on',el.checked);});
+  document.querySelectorAll('[data-apt]').forEach(el=>{const[p1,p2]=el.getAttribute('data-apt').split('|');
+    el.value=flags[p2]?'2':(flags[p1]?'1':'0');});
+  const fi=document.getElementById('faceIn');if(fi)fi.value=faceVal?faceVal.toString(16).toUpperCase().padStart(4,'0'):'';
+  document.querySelectorAll('[data-text]').forEach(el=>{el.value=textVals[el.getAttribute('data-text')]||'';});
+  TEXTF.forEach(t=>updateTextPrev(t.key));
+  const thr=document.querySelector('[data-throw]');if(thr)thr.value=thrLeft?'1':'0';
+  const bat=document.querySelector('[data-bat]');if(bat)bat.value=String(batMode);
+  const rt=document.querySelector('[data-regtype]');if(rt)rt.value=String(regType);
+  const nr=document.querySelector('[data-namerev]');if(nr)nr.checked=nameRev;
+  refreshRanks();
+  updatePrio();
+}
+function refreshRanks(){
+  document.querySelectorAll('input[type=range][data-stat]').forEach(g=>{
+    const n=g.parentElement.querySelector('input[type=number][data-stat]');if(n)n.value=g.value;});
+  document.querySelectorAll('.rkbadge').forEach(rb=>{const row=rb.closest('.frow');if(!row)return;
+    const el=row.querySelector('[data-stat]');if(!el)return;const base=el.getAttribute('data-stat');
+    rb.textContent=rankOf(stat[base]|0);});
+}
+function cssq(s){return s.replace(/"/g,'\\"');}
+function updatePrio(){const p=document.getElementById('prioNote');if(!p)return;
+  const on=(stat['実況付きエフェクト']|0)!==0;
+  p.style.opacity=on?1:.55;
+  p.innerHTML=on?'★ 実況付きエフェクトが有効 → <b>エフェクトのみは無視され、実況付きが優先表示</b>されます。'
+                :'★ 実況付きエフェクトが「なし」のため、エフェクトのみが表示に使われます。';
+}
+
+function wireEditor(){
+  const form=document.getElementById('edForm');
+  form.addEventListener('input',e=>{
+    const t=e.target;
+    if(t.dataset.stat!==undefined){const b=t.dataset.stat;let v=parseInt(t.value||'0',10)||0;
+      const max=t.max?+t.max:Infinity;v=Math.max(0,Math.min(max,v));stat[b]=v;
+      // mirror range<->number
+      t.closest('.frow')&&t.closest('.frow').querySelectorAll('[data-stat="'+cssq(b)+'"]').forEach(x=>{if(x!==t)x.value=v;});
+      document.querySelectorAll('.spnode [data-stat="'+cssq(b)+'"]').forEach(x=>{if(x!==t)x.value=v;});
+      if(t.dataset.sel)updatePrio();
+      refreshRanks();renderDump();
+    } else if(t.dataset.speed!==undefined){let k=parseInt(t.value||'80',10)||80;k=Math.max(80,Math.min(207,k));stat['球速']=k-80;
+      t.closest('.frow').querySelectorAll('[data-speed]').forEach(x=>{if(x!==t)x.value=k;});renderDump();}
+    else if(t.dataset.byte!==undefined){const o=+t.dataset.byte;bytef[o]=parseInt(t.value||'0',10)||0;renderDump();}
+    else if(t.dataset.flag!==undefined){flags[t.dataset.flag]=t.checked;t.closest('.spitem').classList.toggle('on',t.checked);renderDump();}
+    else if(t.dataset.apt!==undefined){const[p1,p2]=t.dataset.apt.split('|');const v=t.value;
+      flags[p1]=(v==='1');flags[p2]=(v==='2');renderDump();}
+    else if(t.id==='faceIn'){faceVal=parseInt(t.value||'0',16)||0;renderDump();}
+    else if(t.dataset.text!==undefined){textVals[t.dataset.text]=t.value;updateTextPrev(t.dataset.text);renderDump();}
+    else if(t.dataset.throw!==undefined){thrLeft=(t.value==='1');renderDump();}
+    else if(t.dataset.bat!==undefined){batMode=parseInt(t.value,10)||0;renderDump();}
+    else if(t.dataset.regtype!==undefined){regType=parseInt(t.value,10)||0;renderDump();}
+    else if(t.dataset.namerev!==undefined){nameRev=t.checked;renderDump();}
+  });
+  // focus highlight
+  form.addEventListener('focusin',e=>{const row=e.target.closest('[data-offs]');if(row){setFocus(row.getAttribute('data-offs').split(',').filter(x=>x!=='').map(Number));}});
+  form.addEventListener('focusout',()=>{setTimeout(()=>{if(!form.contains(document.activeElement))clearFocus();},60);});
+  // special search
+  const ss=document.getElementById('spSearch');
+  ss.addEventListener('input',()=>{const q=ss.value.trim().toLowerCase();
+    document.querySelectorAll('#tab-edit .spnode').forEach(n=>{const nm=(n.getAttribute('data-name')||'').toLowerCase();
+      n.classList.toggle('hide',q&&nm.indexOf(q)<0);});});
+}
+
+document.getElementById('btnSample').onclick=()=>{loadSample();syncUI();renderDump();};
+document.getElementById('btnZero').onclick=()=>{loadZero();syncUI();renderDump();};
+document.getElementById('btnCopy').onclick=()=>{const ta=document.getElementById('hexStr');ta.select();document.execCommand('copy');
+  const b=document.getElementById('btnCopy');const o=b.textContent;b.textContent='コピーしました';setTimeout(()=>b.textContent=o,1200);};
+
+/* ===================== MAP TAB ===================== */
+const SECMETA=[['基本情報','名前・ニックネーム','--s-base'],['能力値','弾道/ミート/パワー/走力/肩力/守備力/捕球 (ビットパック)','--s-abil'],['守備','守備位置・各ポジション守備レベル','--s-def'],['適性','先発/中継ぎ/抑え','--s-apt'],['球速・制球・スタミナ','球速/コントロール/スタミナ','--s-pcs'],['打撃フォーム','batting form id','--s-form'],['球種','6球種枠 + 第二 + 変化量','--s-pitch'],['オリジナル変化球名','オリ変の名称','--s-orig'],['オリ変パラメータ','エフェクト/変化量/キレ/重さ ほか','--s-origp'],['顔','face id','--s-face'],['特殊能力','約280種のビットフラグ','--s-sp'],['不明領域','未解析','--s-unk'],['その他','','--s-etc']];
+const SECIDX={};SECMETA.forEach((m,i)=>SECIDX[m[0]]=i);
+function buildGroups(){const order=[],map={};DATA.struct.forEach(r=>{const k=r.offset||'?';if(!map[k]){map[k]={offset:r.offset,num:r.num,section:r.section,bits:[]};order.push(k);}const g=map[k];if(r.exHex){g.exHex=r.exHex;g.exBin=r.exBin;}g.bits.push(r);});return order.map(k=>map[k]);}
+const GROUPS=buildGroups();
+const FIELDS_BY_SEC={};DATA.fields.forEach(f=>{(FIELDS_BY_SEC[f.section]=FIELDS_BY_SEC[f.section]||[]).push(f);});
+let activeSec=null,query='';
+const secCounts={};GROUPS.forEach(g=>secCounts[g.section]=(secCounts[g.section]||0)+1);DATA.fields.forEach(f=>secCounts[f.section]=(secCounts[f.section]||0)+1);
+const chipsEl=document.getElementById('chips');
+SECMETA.forEach(m=>{const sec=m[0];if(!secCounts[sec])return;const c=document.createElement('div');c.className='chip';c.dataset.sec=sec;c.style.setProperty('--c','var('+m[2]+')');c.innerHTML='<span class="dot"></span>'+sec+'<span class="n">'+secCounts[sec]+'</span>';c.onclick=()=>{activeSec=(activeSec===sec)?null:sec;syncChips();renderMap();};chipsEl.appendChild(c);});
+function syncChips(){[...chipsEl.children].forEach(c=>c.classList.toggle('on',c.dataset.sec===activeSec));}
+function hl(s){if(!query)return esc(s);const i=String(s).toLowerCase().indexOf(query);if(i<0)return esc(s);return esc(String(s).slice(0,i))+'<mark>'+esc(String(s).slice(i,i+query.length))+'</mark>'+esc(String(s).slice(i+query.length));}
+function matchBit(b){if(!query)return true;return(b.name&&String(b.name).toLowerCase().includes(query))||(b.bit&&String(b.bit).toLowerCase().includes(query))||(b.note&&String(b.note).toLowerCase().includes(query));}
+function matchGroup(g){if(activeSec&&g.section!==activeSec)return false;if(!query)return true;if((g.offset||'').toLowerCase().includes(query))return true;return g.bits.some(matchBit);}
+function matchField(f){if(activeSec&&f.section!==activeSec)return false;if(!query)return true;return(f.offset||'').toLowerCase().includes(query)||(f.name&&f.name.toLowerCase().includes(query))||(f.note&&f.note.toLowerCase().includes(query));}
+function secVar(sec){return 'var('+(SECMETA[SECIDX[sec]]?SECMETA[SECIDX[sec]][2]:'--s-etc')+')';}
+function renderMap(){const body=document.getElementById('mapBody');let html='',shown=0;
+  SECMETA.forEach(m=>{const sec=m[0];const fields=(FIELDS_BY_SEC[sec]||[]).filter(matchField);const groups=GROUPS.filter(g=>g.section===sec&&matchGroup(g));if(!fields.length&&!groups.length)return;shown++;const cv=secVar(sec);
+    html+='<div class="sec" style="--c:'+cv+'"><span class="bar"></span><h2>'+sec+'</h2><span class="rng2">'+esc(m[1])+'</span><span class="cnt">'+(fields.length+groups.length)+' 項目</span></div><div class="grid">';
+    fields.forEach(f=>{html+='<div class="field" style="--c:'+cv+'"><span class="off mono">0x'+esc(f.offset).replace('-','–0x')+'</span><span class="fn">'+hl(f.name)+'</span>'+(f.note?'<span class="nt">'+hl(f.note)+'</span>':'')+'</div>';});
+    groups.forEach(g=>{const anyMatch=query?g.bits.some(matchBit):false;const exv=g.exHex?'<span class="exv mono">= 0x'+esc(g.exHex)+'<span class="bin">'+esc(g.exBin)+'</span></span>':'';
+      html+='<div class="byte" style="--c:'+cv+'"><div class="bh"><span class="off mono">0x'+esc(g.offset)+'</span><span class="secname">'+sec+'</span>'+exv+'</div><div class="bits">';
+      g.bits.forEach(b=>{const mk=query&&matchBit(b);const empty=(b.name==null||b.name==='-'||b.name==='');const ex=(b.exBit===1)?'<span class="ex on"></span>':(b.exBit===0?'<span class="ex"></span>':'<span></span>');
+        html+='<div class="bit '+(empty?'empty':'')+' '+(mk?'mark':'')+'"><span class="bm">'+esc(b.bit||'')+'</span><span class="nm">'+(empty?'—':hl(b.name))+(b.note?'<span class="nt">'+hl(b.note)+'</span>':'')+'</span>'+ex+'</div>';});
+      html+='</div></div>';});
+    html+='</div>';});
+  if(!shown)html='<div class="empty-msg">該当なし</div>';body.innerHTML=html;}
+document.getElementById('q').addEventListener('input',e=>{query=e.target.value.trim().toLowerCase();renderMap();});
+
+/* ===================== CONV TAB ===================== */
+function renderConv(){const b=document.getElementById('convBody');const bands=[];let cur=null;
+  DATA.conv_rank.forEach(r=>{if(!cur||cur.rank!==r.rank){cur={rank:r.rank,min:r.v,max:r.v};bands.push(cur);}else cur.max=r.v;});
+  const bandsHtml=bands.map(x=>'<div class="rankband"><span class="rk">'+x.rank+'</span><span>'+x.min+'–'+x.max+'</span></div>').join('');
+  const posHtml=DATA.conv_pos.map(p=>'<tr><td class="m">'+p.code+'</td><td>'+esc(p.name)+'</td></tr>').join('');
+  const lvlHtml=DATA.conv_lvl.map(l=>'<tr><td class="m">'+l.coef+'</td><td>'+esc(l.mark)+'</td></tr>').join('');
+  const ptHtml=DATA.pitch_types.map(p=>'<div class="it"><span class="c">'+esc(p.code)+'</span><span>'+esc(p.name)+'</span></div>').join('');
+  const eoHtml=DATA.effect_only.map(e=>'<div class="it"><span class="c">'+esc(e.code)+'</span><span>'+esc(e.name)+'</span></div>').join('');
+  const ceHtml=DATA.commentary_effect.map(e=>'<div class="it"><span class="c">'+esc(e.code)+'</span><span>'+esc(e.name)+'</span></div>').join('');
+  b.innerHTML='<div class="cv">'+
+    '<div class="card"><h3><span class="bar"></span>能力ランク (0–100 → G〜S)</h3><div class="rankrow">'+bandsHtml+'</div>'+
+    '<div class="calc"><span style="color:var(--mut);font-size:12px">値:</span><input type="number" min="0" max="100" id="rkin" placeholder="0-100"><span>→</span><span class="out2" id="rkout">—</span></div></div>'+
+    '<div class="card"><h3><span class="bar"></span>守備位置コード</h3><table class="t"><thead><tr><th class="m">code</th><th>ポジション</th></tr></thead><tbody>'+posHtml+'</tbody></table></div>'+
+    '<div class="card"><h3><span class="bar"></span>特殊能力レベル (○△×)</h3><table class="t"><thead><tr><th class="m">係数</th><th>表示</th></tr></thead><tbody>'+lvlHtml+'</tbody></table></div>'+
+    '<div class="card" style="grid-column:1/-1"><h3><span class="bar"></span>球種コード一覧</h3><div class="pt">'+ptHtml+'</div></div>'+
+    '<div class="card" style="grid-column:1/-1"><h3><span class="bar"></span>エフェクトのみ (0x1B6)</h3><div class="pt">'+eoHtml+'</div></div>'+
+    '<div class="card" style="grid-column:1/-1"><h3><span class="bar"></span>実況付きエフェクト (0x1BB)・優先</h3><div class="pt">'+ceHtml+'</div></div>'+
+    '</div>';
+  const rkin=document.getElementById('rkin'),rkout=document.getElementById('rkout');
+  rkin.addEventListener('input',()=>{const v=Math.max(0,Math.min(100,parseInt(rkin.value||'0',10)));rkout.textContent=rankLUT[v]||'—';});
+}
+
+/* ===================== SAMPLE TAB ===================== */
+function renderEx(){const e=DATA.example,b=document.getElementById('exBody');
+  let abil='<div class="card"><h3><span class="bar"></span>能力値 / 球種</h3><div class="mono" style="color:var(--mut);font-size:12px;margin-bottom:8px">serch 32bit: <span style="color:var(--acc)">'+esc(e.pointer||'-')+'</span></div><table class="t"><thead><tr><th>能力</th><th>値</th><th>ランク/表示</th></tr></thead><tbody>';
+  e.abilities.forEach(a=>{abil+='<tr><td>'+esc(a.name)+'</td><td class="m">'+(a.value==null?'':esc(a.value))+'</td><td class="m" style="color:var(--gold)">'+esc(a.rank!=null?a.rank:(a.disp||''))+'</td></tr>';});
+  e.pitches.forEach(p=>{abil+='<tr><td>'+esc(p.name)+'</td><td class="m">'+esc(p.type||'')+'</td><td class="m">'+esc(p.amt!=null?p.amt:'')+'</td></tr>';});
+  abil+='</tbody></table></div>';
+  let hx='<div class="card"><h3><span class="bar"></span>実バイトダンプ</h3><div class="hex"><table><tr><th></th>';
+  for(let i=0;i<16;i++)hx+='<th>'+i.toString(16).toUpperCase().padStart(2,'0')+'</th>';hx+='</tr>';
+  e.hexdump.forEach(row=>{hx+='<tr><td class="o">'+esc(row.offset)+'</td>';row.bytes.forEach(by=>{if(by==null)hx+='<td class="n">··</td>';else{const s=String(by);hx+='<td class="'+(s==='00'?'z':'b nz')+'">'+esc(s)+'</td>';}});hx+='</tr>';});
+  hx+='</table></div><p class="note">0x1E0〜が特殊能力ビット。エディタの初期値はこのダンプをデコードして復元しています。</p></div>';
+  b.innerHTML='<div class="cv">'+abil+hx+'</div>';
+}
+
+/* ===================== TABS ===================== */
+document.querySelectorAll('.tabs button').forEach(btn=>{btn.onclick=()=>{document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('on',b===btn));const t=btn.dataset.tab;document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on',p.id==='tab-'+t));};});
+
+/* ===================== INIT ===================== */
+buildEditor();
+loadSample(); syncUI(); renderDump();
+renderMap(); renderConv(); renderEx();
+</script>
+</body>
+</html>
