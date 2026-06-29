@@ -6,5 +6,6 @@ permalink: /games/
 
 | タイトル | 内容 |
 |----------|------|
-| 桃太郎電鉄ワールド２ | [→ 詳細](/switch/games/momotetsu2/) |
+| パワプロ2026 v1.10 | [→ 詳細](/switch/games/pawapuro2026/) |
+| 桃太郎電鉄ワールド２ v1.0.4 | [→ 詳細](/switch/games/momotetsu2/) |
 
