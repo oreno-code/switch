@@ -108,6 +108,14 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,2
   display:flex;align-items:center;gap:5px}
 .dump .dh .live .pulse{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc);
   animation:pulse 1.6s infinite}
+.dump .searchval{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 14px;
+  border-bottom:1px solid var(--border);background:rgba(57,211,255,.07)}
+.dump .searchval .lbl{font-size:11px;color:var(--mut)}
+.dump .searchval .v{font-family:var(--mono);font-size:18px;font-weight:800;color:var(--acc2);
+  text-shadow:0 0 12px rgba(57,211,255,.4);cursor:pointer;letter-spacing:.02em}
+.dump .searchval .v:hover{color:#fff}
+.dump .searchval .bytes{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.dump .searchval .cp{margin-left:auto;font-size:10.5px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 .hex{font-family:var(--mono);font-size:12px;overflow:auto;max-height:60vh;padding:6px 10px 12px}
 .hex table{border-collapse:collapse;min-width:100%}
@@ -228,6 +236,7 @@ footer{max-width:1340px;margin:0 auto;padding:26px 22px;color:var(--dim);font-si
       <div class="edright">
         <div class="dump">
           <div class="dh"><h3>実バイトダンプ</h3><span class="live"><span class="pulse"></span>LIVE</span></div>
+          <div class="searchval" id="searchVal"></div>
           <div class="hex" id="hexDump"></div>
           <div class="out">
             <div class="lbl">編集領域 0x12E–0x208 の連続バイト <button class="btn" id="btnCopy" style="padding:3px 9px;font-size:11px">コピー</button></div>
@@ -371,6 +380,19 @@ function renderDump(){
   // contiguous string 0x12E-0x208
   let s=[];for(let o=0x12E;o<=0x208;o++){const v=MODELED.has(o)?(B[o]||0):(SAMPLE[o]||0);s.push(v.toString(16).toUpperCase().padStart(2,'0'));}
   document.getElementById('hexStr').value=s.join(' ');
+  // search value: 0x130..0x133 as little-endian uint32
+  const sv=((B[0x130]||0)|((B[0x131]||0)<<8)|((B[0x132]||0)<<16)|((B[0x133]||0)<<24))>>>0;
+  const svHex='0x'+sv.toString(16).toUpperCase().padStart(8,'0');
+  const svBytes=[0x130,0x131,0x132,0x133].map(o=>(B[o]||0).toString(16).toUpperCase().padStart(2,'0')).join(' ');
+  const svEl=document.getElementById('searchVal');
+  if(svEl)svEl.innerHTML='<span class="lbl">サーチ値 0x130 (32bit LE)</span>'+
+    '<span class="v" title="クリックでコピー" onclick="copyText(this.textContent,this)">'+svHex+'</span>'+
+    '<span class="bytes">['+svBytes+']</span>';
+}
+function copyText(t,el){
+  const done=()=>{if(!el)return;const o=el.textContent;el.textContent='コピー済';setTimeout(()=>el.textContent=o,900);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,()=>{});}
+  else{const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}ta.remove();done();}
 }
 function setFocus(offs){focusOffsets=new Set(offs);renderDump();}
 function clearFocus(){if(focusOffsets.size){focusOffsets=new Set();renderDump();}}
