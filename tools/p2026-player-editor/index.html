@@ -68,7 +68,18 @@ input[type=text].hex{width:110px}
 select{font-family:var(--sans);min-width:120px;max-width:100%}
 input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,242,58,.12)}
 .rng{accent-color:var(--acc);width:150px;vertical-align:middle}
-.rkbadge{font-family:var(--mono);font-weight:800;color:var(--gold);font-size:13px;min-width:20px}
+.rkbadge{display:inline-flex;align-items:center;justify-content:center;min-width:23px;height:21px;padding:0 6px;
+  border-radius:6px;border:2px solid #fff;color:#fff;font-family:var(--mono);font-weight:800;font-size:12px;
+  background:#777;box-shadow:0 1px 3px rgba(0,0,0,.45);text-shadow:0 1px 1px rgba(0,0,0,.4)}
+.rkbadge:empty{display:none}
+.rkbadge[data-rk="S"]{background:#ff5d9f}
+.rkbadge[data-rk="A"]{background:#e810ca}
+.rkbadge[data-rk="B"]{background:#e90129}
+.rkbadge[data-rk="C"]{background:#e46f00}
+.rkbadge[data-rk="D"]{background:#bba60d}
+.rkbadge[data-rk="E"]{background:#27be00}
+.rkbadge[data-rk="F"]{background:#018cfe}
+.rkbadge[data-rk="G"]{background:#777777}
 .byteref{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
 @media(max-width:620px){.grid2{grid-template-columns:1fr}}
@@ -402,6 +413,7 @@ function esc(s){return(s==null?'':String(s)).replace(/[&<>"]/g,m=>({'&':'&amp;',
 const SECV={'基本情報':'--s-base','能力値':'--s-abil','守備':'--s-def','適性':'--s-apt','球速・制球・スタミナ':'--s-pcs','打撃フォーム':'--s-form','球種':'--s-pitch','オリジナル変化球名':'--s-orig','オリ変パラメータ':'--s-origp','顔':'--s-face','特殊能力':'--s-sp','不明領域':'--s-unk','その他':'--s-etc'};
 function rankOf(v){v=Math.max(0,Math.min(100,v|0));const lut=rankLUT;return lut[v]||'';}
 const rankLUT={}; DATA.conv_rank.forEach(r=>rankLUT[r.v]=r.rank);
+const RANKCOLOR={S:'#ff5d9f',A:'#e810ca',B:'#e90129',C:'#e46f00',D:'#bba60d',E:'#27be00',F:'#018cfe',G:'#777777'};
 /* per-field max overrides (game caps below the raw bit-width max) */
 const MAXOVR={'送球':89};
 function fmax(base){return (MAXOVR[base]!=null)?MAXOVR[base]:(NUMF[base]?NUMF[base].max:255);}
@@ -623,7 +635,7 @@ function refreshRanks(){
     const n=g.parentElement.querySelector('input[type=number][data-stat]');if(n)n.value=g.value;});
   document.querySelectorAll('.rkbadge').forEach(rb=>{const row=rb.closest('.frow');if(!row)return;
     const el=row.querySelector('[data-stat]');if(!el)return;const base=el.getAttribute('data-stat');
-    rb.textContent=rankOf(stat[base]|0);});
+    const r=rankOf(stat[base]|0);rb.textContent=r;rb.setAttribute('data-rk',r);});
 }
 function cssq(s){return s.replace(/"/g,'\\"');}
 function updatePrio(){const p=document.getElementById('prioNote');if(!p)return;
@@ -704,7 +716,7 @@ document.getElementById('q').addEventListener('input',e=>{query=e.target.value.t
 /* ===================== CONV TAB ===================== */
 function renderConv(){const b=document.getElementById('convBody');const bands=[];let cur=null;
   DATA.conv_rank.forEach(r=>{if(!cur||cur.rank!==r.rank){cur={rank:r.rank,min:r.v,max:r.v};bands.push(cur);}else cur.max=r.v;});
-  const bandsHtml=bands.map(x=>'<div class="rankband"><span class="rk">'+x.rank+'</span><span>'+x.min+'–'+x.max+'</span></div>').join('');
+  const bandsHtml=bands.map(x=>'<div class="rankband" style="border-color:'+(RANKCOLOR[x.rank]||'var(--border)')+'"><span class="rk" style="color:'+(RANKCOLOR[x.rank]||'var(--gold)')+'">'+x.rank+'</span><span>'+x.min+'–'+x.max+'</span></div>').join('');
   const posHtml=DATA.conv_pos.map(p=>'<tr><td class="m">'+p.code+'</td><td>'+esc(p.name)+'</td></tr>').join('');
   const lvlHtml=DATA.conv_lvl.map(l=>'<tr><td class="m">'+l.coef+'</td><td>'+esc(l.mark)+'</td></tr>').join('');
   const ptHtml=DATA.pitch_types.map(p=>'<div class="it"><span class="c">'+esc(p.code)+'</span><span>'+esc(p.name)+'</span></div>').join('');
@@ -726,7 +738,7 @@ function renderConv(){const b=document.getElementById('convBody');const bands=[]
 /* ===================== SAMPLE TAB ===================== */
 function renderEx(){const e=DATA.example,b=document.getElementById('exBody');
   let abil='<div class="card"><h3><span class="bar"></span>能力値 / 球種</h3><div class="mono" style="color:var(--mut);font-size:12px;margin-bottom:8px">serch 32bit: <span style="color:var(--acc)">'+esc(e.pointer||'-')+'</span></div><table class="t"><thead><tr><th>能力</th><th>値</th><th>ランク/表示</th></tr></thead><tbody>';
-  e.abilities.forEach(a=>{abil+='<tr><td>'+esc(a.name)+'</td><td class="m">'+(a.value==null?'':esc(a.value))+'</td><td class="m" style="color:var(--gold)">'+esc(a.rank!=null?a.rank:(a.disp||''))+'</td></tr>';});
+  e.abilities.forEach(a=>{const rk=(a.rank!=null?String(a.rank):(a.disp||''));const col=RANKCOLOR[rk]||'var(--gold)';abil+='<tr><td>'+esc(a.name)+'</td><td class="m">'+(a.value==null?'':esc(a.value))+'</td><td class="m" style="color:'+col+';font-weight:800">'+esc(rk)+'</td></tr>';});
   e.pitches.forEach(p=>{abil+='<tr><td>'+esc(p.name)+'</td><td class="m">'+esc(p.type||'')+'</td><td class="m">'+esc(p.amt!=null?p.amt:'')+'</td></tr>';});
   abil+='</tbody></table></div>';
   let hx='<div class="card"><h3><span class="bar"></span>実バイトダンプ</h3><div class="hex"><table><tr><th></th>';
