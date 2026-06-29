@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 title: パワプロ2026 v1.10
 permalink: /games/pawapuro2026/
 ---

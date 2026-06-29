@@ -1,5 +1,5 @@
 ---
-layout: page
+layout: default
 title: 桃太郎電鉄2 〜あなたの町も きっとある〜 v1.0.4
 permalink: /games/momotetsu2/
 ---

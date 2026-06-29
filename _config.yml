@@ -1,19 +1,12 @@
 title: oreno-code switch
 lang: ja
 description: Nintendo Switch 向けチートコード・ツール置き場
-theme: minima
+theme: jekyll-theme-hacker
 
 url: "https://oreno-code.github.io"
 baseurl: "/switch"
 
 author: oreno-code
-
-minima:
-  skin: dark
-
-header_pages:
-  - games.md
-  - tools/index.md
 
 exclude:
   - "tools/blazor-*/"
