@@ -119,6 +119,8 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(182,2
   padding:0 0 12px;margin-bottom:10px;border-bottom:1px dashed var(--border2)}
 .spgraded .g{display:flex;align-items:center;gap:8px;font-size:12.8px}
 .spgraded .g label{flex:1}
+.spgraded .g .gin{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+.spgraded .g .gin .byteref{font-size:9.5px;line-height:1.1;white-space:nowrap}
 .note{font-size:11.5px;color:var(--mut);white-space:pre-wrap;line-height:1.45;margin:2px 0 0}
 .prio{background:rgba(255,206,77,.08);border:1px solid rgba(255,206,77,.3);border-radius:8px;
   padding:8px 11px;margin-top:10px;font-size:12px;color:var(--gold)}
@@ -631,7 +633,7 @@ function buildEditor(){
   const grad=Object.values(NUMF).filter(f=>f.section==='特殊能力').sort((a,b)=>a.firstOff-b.firstOff);
   sp+='<div class="spgraded">';
   grad.forEach(f=>{sp+='<div class="g spnode" data-name="'+esc(f.base)+'" data-color="'+spCol(f.base)+'" data-offs="'+f.offsets.join(',')+'">'+spBadge(f.base)+'<label>'+esc(f.base)+'</label>'+
-    '<input class="num" type="number" min="0" max="'+fmax(f.base)+'" data-stat="'+esc(f.base)+'"><span class="byteref">'+byteRefStr(f.offsets)+'</span></div>';});
+    '<span class="gin"><input class="num" type="number" min="0" max="'+fmax(f.base)+'" data-stat="'+esc(f.base)+'"><span class="byteref">'+byteRefStr(f.offsets)+'</span></span></div>';});
   sp+='</div>';
   // boolean special abilities
   sp+='<div class="spgrid">';
