@@ -1,0 +1,15 @@
+title: oreno-code switch
+lang: ja
+description: Nintendo Switch 向けチートコード・ツール置き場
+theme: jekyll-theme-hacker
+
+url: "https://oreno-code.github.io"
+baseurl: "/switch"
+
+author: oreno-code
+
+exclude:
+  - "tools/blazor-*/"
+  - "*.py"
+  - "*.sh"
+  - vendor/
